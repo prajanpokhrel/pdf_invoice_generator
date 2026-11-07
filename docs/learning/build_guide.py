@@ -186,13 +186,14 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 40 * mm),
+          Spacer(1, 34 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
                     S["subtitle"]),
           Paragraph("Chapter 6: Phase 6 - Preview Widget", S["subtitle"]),
-          Paragraph("Status: Phase 6 complete.", S["subtitle"]),
+          Paragraph("Chapter 7: Phase 7 - Save, Share, Print", S["subtitle"]),
+          Paragraph("Status: Phase 7 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1453,6 +1454,120 @@ p("Not verifiable in unit tests: the page images themselves (they are drawn "
   "app in Phase 8.")
 p("<b>Next (Phase 7):</b> InvoiceGenerator.save / share / print, with an "
   "honest per-platform support table.")
+
+
+# ==========================================================================
+# CHAPTER 7 - Phase 7: save / share / print
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 7 - Phase 7: Save, share and print")
+code("""
+await InvoiceGenerator.print(invoice);               // print dialog
+await InvoiceGenerator.share(invoice);               // share sheet
+final saved = await InvoiceGenerator.save(invoice);  // file
+print(saved.path);    // null on the web (browser download)
+
+// Reuse an existing PDF (no second generation):
+final pdf = await InvoiceGenerator.generate(invoice);
+await pdf.print();  await pdf.share();  await pdf.save(directory: dir);
+""")
+
+h2("Design: two ways in, one implementation")
+bullets([
+    "<b>Extension methods</b> on InvoicePdf "
+    "(<font face='Courier'>extension InvoicePdfActions on InvoicePdf</font>) "
+    "do the real work. An extension adds methods to a class without changing "
+    "the class - InvoicePdf itself stays a plain data object.",
+    "<b>Static shortcuts</b> InvoiceGenerator.print/share/save = generate + "
+    "the extension. Simple for beginners, efficient for apps that already "
+    "have the PDF (for example from InvoicePreview.onGenerated).",
+    "<b>InvoiceSaveResult</b> instead of returning a String: today it has "
+    "path, fileName and isDownload; tomorrow we can add fields without "
+    "breaking anyone.",
+    "<b>InvoiceOutputException</b> (new subclass): platform failures are "
+    "different from bad data or a broken logo. Because InvoiceException is "
+    "not sealed, adding it was not a breaking change - exactly the reason we "
+    "chose that in Phase 2.",
+])
+
+h2("Research first: what does 'share' really do?")
+p("Instead of trusting the plugin's marketing, I read its native code for "
+  "every platform:")
+table(["Platform", "share() actually...", "Found in"], [
+    ["Android", "opens the share chooser", "PrintingJob.java: Intent.createChooser"],
+    ["iOS", "opens the share sheet", "PrintJob.swift: UIActivityViewController"],
+    ["macOS", "opens the share menu", "PrintJob.swift: NSSharingServicePicker"],
+    ["Windows", "<b>writes a temp file and opens it</b> in the PDF viewer",
+     "print_job.cpp: ShellExecuteEx 'open'"],
+    ["Linux", "<b>writes /tmp/... and runs xdg-open</b>", "print_job.cc: execlp"],
+    ["Web", "downloads the file", "printing_web.dart: link.download"],
+], [24, 74, 72])
+p("So the README says honestly that Windows/Linux have no share sheet. We "
+  "also learned macOS printing needs the "
+  "<font face='Courier'>com.apple.security.print</font> entitlement.")
+
+h2("save(): path_provider + a web-safe conditional import")
+p("As decided in Phase 1, <font face='Courier'>save()</font> uses "
+  "<font face='Courier'>path_provider</font> (Flutter team) to find the app "
+  "documents folder. Writing a file needs <font face='Courier'>dart:io</font>, "
+  "which does not exist in browsers - and pub.dev marks a package that "
+  "imports it directly as 'not web compatible'. Solution:")
+code("""
+// file_writer.dart
+export 'file_writer_web.dart' if (dart.library.io) 'file_writer_io.dart';
+""")
+p("Mobile/desktop builds get the dart:io version; web builds get a stub "
+  "that makes <font face='Courier'>save()</font> fall back to a browser "
+  "download. A browser test (run in Brave) proves the web path works.")
+callout("Honest about 'saved where?'",
+        "The app documents folder is <b>private</b> on Android and (by "
+        "default) on iOS - the user will not find the file in their Files "
+        "app. The docs say so, and suggest share() when the user should "
+        "choose the location (the share sheet has 'Save to Files').",
+        AMBER_BG, AMBER)
+
+h2("Testing plugins without a phone")
+p("Plugins talk to native code, which does not exist in "
+  "<font face='Courier'>flutter test</font>. Federated plugins expose a "
+  "replaceable <b>platform interface</b>, so tests install fakes:")
+code("""
+PrintingPlatform.instance = FakePrinting();          // records calls
+PathProviderPlatform.instance = FakePathProvider(tempDir);
+""")
+callout("A fake that works with two plugin versions",
+        "printing 5.15 added a parameter to layoutPdf(). A fake that "
+        "<i>overrides</i> layoutPdf compiles with only one version. Our fake "
+        "overrides <font face='Courier'>noSuchMethod</font> instead: any call "
+        "is caught, recorded, and answered - so the same test works with "
+        "printing 5.14.3 and 5.15.1.")
+bullets([
+    "print: right PDF bytes reach the dialog, job name, page format "
+    "(Letter), no re-layout, cancel returns false.",
+    "share: bytes, file name, subject, text, emails; an existing PDF is "
+    "shared twice without being regenerated (same bytes object).",
+    "save: exact bytes written, nested folders created, custom name, "
+    "replaces existing, default = documents dir, unwritable path -> "
+    "InvoiceOutputException.",
+    "MissingPluginException -> message explaining hot restart vs full "
+    "restart (the #1 beginner plugin mistake).",
+    "Invalid invoice -> validation error and <b>no</b> dialog opened, no file "
+    "written.",
+])
+
+h2("pub downgrade found another ecosystem trap")
+p("At the oldest versions, path_provider's interface pulled "
+  "<font face='Courier'>platform 3.0.0</font>, which uses an API removed "
+  "from Dart. Every interface version allows it, so no bound of ours can "
+  "prevent it; normal installs always get platform 3.2.0. For the check we "
+  "pinned platform 3.1.4 and confirmed <b>our</b> minimums (pdf 3.12.0, "
+  "printing 5.14.3, path_provider 2.1.0, http 0.13.0, intl 0.19.0) pass "
+  "all tests.")
+code("""
+flutter analyze  -> No issues  |  flutter test -> +214 passed
+web (Brave) -> +121 passed     |  oldest versions -> +214 passed
+""")
+p("<b>Not verified yet:</b> the real native dialogs - checked by hand on "
+  "macOS in the example app. <b>Next (Phase 8):</b> the example app.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

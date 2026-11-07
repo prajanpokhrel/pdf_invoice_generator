@@ -27,6 +27,7 @@ export 'src/models/invoice_logo.dart' show InvoiceLogo;
 export 'src/models/invoice_qr_code.dart';
 export 'src/models/payment_information.dart';
 export 'src/models/tax.dart';
+export 'src/output/invoice_output.dart';
 export 'src/pdf/invoice_generator.dart' show InvoiceGenerator;
 export 'src/pdf/invoice_labels.dart';
 export 'src/pdf/invoice_pdf.dart';

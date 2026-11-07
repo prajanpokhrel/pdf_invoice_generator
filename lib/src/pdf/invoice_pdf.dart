@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
+import 'package:pdf/pdf.dart';
 
 import '../calculation/invoice_totals.dart';
 
@@ -22,6 +23,7 @@ final class InvoicePdf {
     required this.fileName,
     required this.pageCount,
     required this.totals,
+    this.pageFormat = PdfPageFormat.a4,
   });
 
   /// The PDF file contents.
@@ -37,6 +39,9 @@ final class InvoicePdf {
 
   /// The calculated totals printed on this PDF.
   final InvoiceTotals totals;
+
+  /// The page size the PDF was laid out for.
+  final PdfPageFormat pageFormat;
 
   @override
   String toString() =>

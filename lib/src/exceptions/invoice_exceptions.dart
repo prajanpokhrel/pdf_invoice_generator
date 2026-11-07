@@ -100,3 +100,11 @@ final class InvoiceGenerationException extends InvoiceException {
   /// Stack trace of [cause], when available.
   final StackTrace? stackTrace;
 }
+
+/// Saving, sharing or printing failed on this platform, for example because
+/// the plugin is not available (an app that was hot-restarted instead of
+/// rebuilt after adding the package) or the file could not be written.
+final class InvoiceOutputException extends InvoiceException {
+  /// Creates the exception.
+  const InvoiceOutputException(super.message, {super.cause});
+}

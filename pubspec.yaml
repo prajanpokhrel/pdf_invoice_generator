@@ -30,7 +30,10 @@ dependencies:
   # Builds the PDF document (pages, tables, text, images, fonts).
   # ^3.12.0 keeps Dart 2.19+ support; newer SDKs still resolve 3.13+.
   pdf: ^3.12.0
-  # PdfPreview (InvoicePreview), and in Phase 7 print and share.
+  # InvoiceGenerator.save(): finds the app documents folder on each
+  # platform. Maintained by the Flutter team. Not used on the web.
+  path_provider: ^2.1.0
+  # PdfPreview (InvoicePreview), print and share.
   # ^5.14.3 supports Flutter 3.22+; newer SDKs still resolve 5.15+.
   printing: ^5.14.3
 
@@ -38,6 +41,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  path_provider_platform_interface: ^2.1.0
+  plugin_platform_interface: ^2.1.0
 
 flutter:
   assets:
