@@ -183,9 +183,10 @@ story += [Spacer(1, 60 * mm),
                     " phase by phase, in simple language", S["subtitle"]),
           Spacer(1, 18),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
-          Spacer(1, 70 * mm),
-          Paragraph("Status: waiting for your approval before writing code.",
+          Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
+          Spacer(1, 64 * mm),
+          Paragraph("Status: Phase 2 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -635,6 +636,180 @@ h2("Future pro features (not in the free core)")
 p("Extra premium templates, advanced branding, custom sections, recurring "
   "invoices. The core stays a clean, free SDK - no payments or licences "
   "inside the package.")
+
+# ==========================================================================
+# CHAPTER 2 - Phase 2: package skeleton and models
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 2 - Phase 2: Skeleton and models")
+p("In this phase we turned the folder into a real package, wrote every "
+  "data model, the error classes, the public export file, and 42 tests. "
+  "There is no PDF code yet - that is on purpose. We first make the data "
+  "solid, then build on top of it.")
+
+h2("Step 1 - From app to package")
+table(["What we did", "Why"], [
+    ["Deleted android/ ios/ web/ macos/ windows/ linux/, lib/main.dart, "
+     "test/widget_test.dart",
+     "A package has no app to run. Those folders were the default counter "
+     "app. The demo app will live in example/ (Phase 8)."],
+    ["Changed .metadata to <font face='Courier'>project_type: package</font>",
+     "Tells the Flutter tool this is a package, not an app."],
+    ["Renamed to <font face='Courier'>flutter_invoice_generator</font> in "
+     "pubspec.yaml",
+     "The name people will type in their pubspec. Users import "
+     "<font face='Courier'>package:flutter_invoice_generator/...</font>."],
+    ["Kept <font face='Courier'>publish_to: 'none'</font> for now",
+     "A safety lock so nothing gets published by accident. Removed in Phase 10."],
+    ["Only one dependency added: <font face='Courier'>meta</font>",
+     "For <font face='Courier'>@immutable</font>. Flutter already ships it, "
+     "so users download nothing new. pdf/printing come in Phase 4."],
+    ["Stricter analysis_options.yaml",
+     "Forces doc comments on every public API, trailing commas, final "
+     "locals, strict types. pub.dev scores packages on this."],
+], [70, 100])
+
+h2("Step 2 - The models")
+code("""
+lib/src/models/
+  currency.dart            Currency + 8 built-ins (usd, eur, gbp, inr,
+                           npr, aud, cad, jpy) and Currency.values
+  tax.dart                 Tax(name, percentage)
+  discount.dart            Discount, DiscountType, .percentage(), .fixed()
+  business.dart            seller (name required, the rest optional)
+  customer.dart            buyer  (name required, the rest optional)
+  payment_information.dart all optional + isEmpty
+  invoice_logo.dart        InvoiceLogo.memory / .asset / .network
+  invoice_detail.dart      extra header rows like 'PO Number'
+  invoice_item.dart        one line
+  invoice.dart             everything together
+""")
+
+h2("Five Dart ideas used everywhere (learn these!)")
+p("<b>1. Immutable + final fields.</b> Every field is "
+  "<font face='Courier'>final</font> and the class is marked "
+  "<font face='Courier'>@immutable</font>. Once made, an invoice never changes.")
+p("<b>2. Defensive copies.</b> If you pass a list to an Invoice and later "
+  "change your list, the invoice must not change. So the constructor "
+  "copies it:")
+code("""
+Invoice({required List<InvoiceItem> items, ...})
+    : items = List.unmodifiable(items);   // copy + read-only
+""")
+p("<b>3. copyWith.</b> To 'edit' an immutable object you make a changed copy:")
+code("final updated = invoice.copyWith(invoiceNumber: 'INV-1002');")
+p("Note: with this common pattern, passing <font face='Courier'>null</font> "
+  "means 'keep the old value', so copyWith cannot remove an optional field. "
+  "We documented that.")
+p("<b>4. Value equality (== and hashCode).</b> By default Dart says two "
+  "objects are equal only if they are the <i>same object</i>. We override "
+  "<font face='Courier'>==</font> so two invoices with the same data are "
+  "equal. The rule: if you override ==, you must override hashCode the same "
+  "way, or Sets and Maps break.")
+p("<b>5. final class.</b> <font face='Courier'>final class Tax</font> means "
+  "users cannot extend or implement Tax. That sounds strict, but it protects "
+  "them: if we add a new field or method later, nobody's subclass breaks. "
+  "This is a backward-compatibility tool.")
+simple("Immutable means 'printed on paper': you can photocopy it with "
+       "changes (copyWith), but you never erase the original.")
+
+h2("Design decisions you will see in the code")
+bullets([
+    "<b>Numbers are <font face='Courier'>num</font>.</b> So both "
+    "<font face='Courier'>quantity: 2</font> and "
+    "<font face='Courier'>quantity: 2.5</font> work, and an "
+    "<font face='Courier'>int</font> variable can be passed without "
+    "<font face='Courier'>.toDouble()</font>. In Dart, "
+    "<font face='Courier'>13 == 13.0</font> is true and their hashCodes "
+    "match, so equality still works.",
+    "<b>tax vs taxes.</b> Both Invoice and InvoiceItem accept "
+    "<font face='Courier'>tax:</font> (one) or "
+    "<font face='Courier'>taxes:</font> (many). Passing both throws an "
+    "ArgumentError - in release builds too, not only in debug.",
+    "<b>Item taxes have 3 meanings:</b> not set (null) = use the invoice "
+    "taxes; a list = use these instead; "
+    "<font face='Courier'>const []</font> = tax-exempt item.",
+    "<b>Logo lives on Business.</b> The requirements listed a logo on both "
+    "Invoice and Business. Two places for the same thing is confusing, so "
+    "the seller's logo is <font face='Courier'>Business.logo</font>.",
+    "<b>dueDate is optional</b> for 'due on receipt' invoices.",
+    "<b>Currency defaults to USD</b> so the quick start stays short.",
+    "<b>metadata vs details.</b> details are printed on the PDF (PO number); "
+    "metadata is never printed (your database ID).",
+    "<b>No QR field yet.</b> Adding an optional field later is not a "
+    "breaking change, so we add it only when it actually works.",
+])
+
+h2("Step 3 - Sealed class for the logo")
+code("""
+sealed class InvoiceLogo {
+  const factory InvoiceLogo.memory(Uint8List bytes) = MemoryInvoiceLogo;
+  const factory InvoiceLogo.asset(String assetPath) = AssetInvoiceLogo;
+  const factory InvoiceLogo.network(String url)     = NetworkInvoiceLogo;
+}
+""")
+p("<font face='Courier'>sealed</font> means the compiler knows the full "
+  "list of logo kinds. In Phase 4, when we load the logo with a "
+  "<font face='Courier'>switch</font>, Dart will error if we forget one "
+  "kind. Users only see <font face='Courier'>InvoiceLogo</font> - the three "
+  "concrete classes are hidden with "
+  "<font face='Courier'>export ... show InvoiceLogo</font>.")
+p("A memory logo is equal to another only if it is the same byte buffer. "
+  "Comparing two 2 MB images byte by byte every time you compare invoices "
+  "would be slow.")
+
+h2("Step 4 - Exceptions")
+p("<font face='Courier'>InvoiceException</font> is the base class. It is "
+  "deliberately <b>not</b> sealed: if it were, adding a new exception type "
+  "in v1.2 would break users' exhaustive switch statements. "
+  "<font face='Courier'>InvoiceValidationException</font> carries a list of "
+  "<font face='Courier'>InvoiceValidationIssue(field, message)</font>, "
+  "for example <font face='Courier'>items[1].quantity: must not be "
+  "negative</font>. The validator that fills it comes in Phase 3, together "
+  "with the calculator, because some rules (fixed discount bigger than the "
+  "subtotal) need the totals.")
+
+h2("Step 5 - The public door: one export file")
+code("""
+// lib/flutter_invoice_generator.dart
+export 'src/models/invoice.dart';
+export 'src/models/invoice_logo.dart' show InvoiceLogo;
+...
+""")
+p("Internal helpers (<font face='Courier'>utils/equality.dart</font>, "
+  "<font face='Courier'>utils/tax_merge.dart</font>) are <b>not</b> "
+  "exported, so we can change them any time.")
+
+h2("Step 6 - Tests (42 passing)")
+table(["File", "What it proves"], [
+    ["test/models/currency_test.dart", "8 required currencies, unique codes, "
+     "JPY = 0 decimals, custom currency, equality, copyWith, bad decimals rejected"],
+    ["test/models/tax_discount_test.dart", "decimal tax rates, 13 == 13.0, "
+     "short and long Discount forms are equal, percentage != fixed"],
+    ["test/models/parties_test.dart", "Business/Customer/Payment fields, "
+     "payment without IBAN, logo equality rules"],
+    ["test/models/invoice_item_test.dart", "quantities 1, 2, 2.5, 0.75; the "
+     "3 tax meanings; both-tax error; list copied and read-only"],
+    ["test/models/invoice_test.dart", "quick-start invoice, defaults, multiple "
+     "taxes (CGST+SGST), immutability, equality, metadata key order"],
+    ["test/exceptions/...", "messages list every issue; all catchable as "
+     "InvoiceException"],
+], [62, 108])
+p("Tests import only <font face='Courier'>package:flutter_invoice_generator/"
+  "flutter_invoice_generator.dart</font>, exactly like a real user. That "
+  "also proves the exports are correct.")
+code("""
+flutter pub get
+flutter analyze        ->  No issues found!
+flutter test           ->  +42: All tests passed!
+dart format lib test   ->  0 changed
+""")
+p("<b>Try it yourself:</b> change a value in "
+  "<font face='Courier'>test/models/invoice_test.dart</font> so a test "
+  "fails, then run <font face='Courier'>flutter test</font>.")
+p("<b>Next (Phase 3):</b> InvoiceCalculator + InvoiceTotals + InvoiceValidator, the exact "
+  "minor-unit money math, and many calculation tests (1 x $100, 10% "
+  "discount, 13% tax, decimals, rounding, large values).")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,
