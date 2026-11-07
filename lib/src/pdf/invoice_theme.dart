@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../utils/equality.dart';
 import 'invoice_table_style.dart';
 
 /// Visual settings for the generated PDF: page size, colours, fonts,
@@ -154,4 +155,50 @@ final class InvoiceTheme {
       footerText: footerText ?? this.footerText,
     );
   }
+
+  /// Fonts are compared by identity: reuse the same `Font` objects to keep
+  /// two themes equal.
+  @override
+  bool operator ==(Object other) =>
+      other is InvoiceTheme &&
+      other.pageFormat == pageFormat &&
+      other.margin == margin &&
+      other.primaryColor == primaryColor &&
+      other.secondaryColor == secondaryColor &&
+      other.textColor == textColor &&
+      other.baseFontSize == baseFontSize &&
+      other.font == font &&
+      other.boldFont == boldFont &&
+      listEquals(other.fontFallback, fontFallback) &&
+      other.locale == locale &&
+      other.dateFormat == dateFormat &&
+      other.sectionSpacing == sectionSpacing &&
+      other.borderRadius == borderRadius &&
+      other.tableStyle == tableStyle &&
+      other.showLogo == showLogo &&
+      other.showPageNumbers == showPageNumbers &&
+      other.showContinuationHeader == showContinuationHeader &&
+      other.footerText == footerText;
+
+  @override
+  int get hashCode => Object.hashAll([
+        pageFormat,
+        margin,
+        primaryColor,
+        secondaryColor,
+        textColor,
+        baseFontSize,
+        font,
+        boldFont,
+        Object.hashAll(fontFallback),
+        locale,
+        dateFormat,
+        sectionSpacing,
+        borderRadius,
+        tableStyle,
+        showLogo,
+        showPageNumbers,
+        showContinuationHeader,
+        footerText,
+      ]);
 }

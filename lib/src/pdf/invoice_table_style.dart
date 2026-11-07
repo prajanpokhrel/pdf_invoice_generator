@@ -42,4 +42,24 @@ final class InvoiceTableStyle {
 
   /// Vertical padding inside each row, in points.
   final double? rowPadding;
+
+  @override
+  bool operator ==(Object other) =>
+      other is InvoiceTableStyle &&
+      other.headerColor == headerColor &&
+      other.headerTextColor == headerTextColor &&
+      other.stripeColor == stripeColor &&
+      other.borderColor == borderColor &&
+      other.showBorders == showBorders &&
+      other.rowPadding == rowPadding;
+
+  @override
+  int get hashCode => Object.hash(
+        headerColor,
+        headerTextColor,
+        stripeColor,
+        borderColor,
+        showBorders,
+        rowPadding,
+      );
 }

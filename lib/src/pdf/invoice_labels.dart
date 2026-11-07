@@ -151,4 +151,78 @@ final class InvoiceLabels {
   /// [pageOf] with the numbers filled in.
   String formatPageOf(int page, int pages) =>
       pageOf.replaceAll('{page}', '$page').replaceAll('{pages}', '$pages');
+
+  @override
+  bool operator ==(Object other) =>
+      other is InvoiceLabels &&
+      other.invoiceTitle == invoiceTitle &&
+      other.invoiceNumber == invoiceNumber &&
+      other.issueDate == issueDate &&
+      other.dueDate == dueDate &&
+      other.billTo == billTo &&
+      other.item == item &&
+      other.quantity == quantity &&
+      other.unitPrice == unitPrice &&
+      other.discount == discount &&
+      other.tax == tax &&
+      other.amount == amount &&
+      other.taxExempt == taxExempt &&
+      other.subtotal == subtotal &&
+      other.total == total &&
+      other.notes == notes &&
+      other.terms == terms &&
+      other.paymentInformation == paymentInformation &&
+      other.bankName == bankName &&
+      other.accountName == accountName &&
+      other.accountNumber == accountNumber &&
+      other.iban == iban &&
+      other.swiftBic == swiftBic &&
+      other.routingNumber == routingNumber &&
+      other.paymentUrl == paymentUrl &&
+      other.taxId == taxId &&
+      other.registrationNumber == registrationNumber &&
+      other.sku == sku &&
+      other.thankYou == thankYou &&
+      other.pageOf == pageOf &&
+      other.continued == continued &&
+      other.scanToPay == scanToPay &&
+      other.scanToView == scanToView &&
+      other.amountDue == amountDue;
+
+  @override
+  int get hashCode => Object.hashAll([
+        invoiceTitle,
+        invoiceNumber,
+        issueDate,
+        dueDate,
+        billTo,
+        item,
+        quantity,
+        unitPrice,
+        discount,
+        tax,
+        amount,
+        taxExempt,
+        subtotal,
+        total,
+        notes,
+        terms,
+        paymentInformation,
+        bankName,
+        accountName,
+        accountNumber,
+        iban,
+        swiftBic,
+        routingNumber,
+        paymentUrl,
+        taxId,
+        registrationNumber,
+        sku,
+        thankYou,
+        pageOf,
+        continued,
+        scanToPay,
+        scanToView,
+        amountDue,
+      ]);
 }

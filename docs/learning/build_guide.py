@@ -186,12 +186,13 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 46 * mm),
+          Spacer(1, 40 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
                     S["subtitle"]),
-          Paragraph("Status: Phase 5 complete.", S["subtitle"]),
+          Paragraph("Chapter 6: Phase 6 - Preview Widget", S["subtitle"]),
+          Paragraph("Status: Phase 6 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1320,6 +1321,138 @@ pub downgrade (oldest versions)  ->  +188: All tests passed!
 """)
 p("<b>Next (Phase 6):</b> the InvoicePreview Flutter widget (shows the real "
   "PDF, so it always matches), adding the printing package.")
+
+
+# ==========================================================================
+# CHAPTER 6 - Phase 6: InvoicePreview widget
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 6 - Phase 6: The preview widget")
+p("Developers can now show the invoice inside their app with one widget:")
+code("""
+InvoicePreview(
+  invoice: invoice,
+  template: InvoiceTemplate.modern,     // optional
+  theme: myTheme,                       // optional
+  allowPrinting: true,                  // optional toolbar buttons
+  allowSharing: true,
+  onGenerated: (pdf) => setState(() => lastPdf = pdf),
+  errorBuilder: (context, error) => Text(error.message),
+)
+""")
+
+h2("Decision: show the real PDF, not a copy of it")
+p("In Phase 1 we chose option A: render the <b>actual PDF bytes</b> with "
+  "printing's <font face='Courier'>PdfPreview</font>. The preview can never "
+  "differ from the file the customer receives, and there is no second "
+  "layout to maintain. This is also why <font face='Courier'>printing</font> "
+  "was only added now - this is the first phase that needs it.")
+callout("Architecture kept clean",
+        "Only <font face='Courier'>lib/src/preview/invoice_preview.dart</font> "
+        "imports Flutter's material library. Models, calculator, validator "
+        "and the PDF engine still know nothing about widgets:"
+        "<br/>Invoice -> Calculator -> PDF renderer -> bytes -> (optional) "
+        "InvoicePreview")
+
+h2("Reading the source first saved us from flicker")
+p("Before writing the widget I read <font face='Courier'>PdfPreview</font>'s "
+  "<font face='Courier'>didUpdateWidget</font>:")
+code("""
+if (oldWidget.build != widget.build || widget.shouldRepaint || ...) {
+  // throw away the rendered pages and render again
+}
+""")
+p("It compares the <font face='Courier'>build</font> <b>function object</b>. "
+  "A closure written inline in <font face='Courier'>build()</font> is a new "
+  "object every rebuild, so the preview would re-render (and flash) every "
+  "time the parent rebuilt - for example on every keystroke in a form. "
+  "Our fix: generate the PDF ourselves and create the closure only when "
+  "new bytes arrive:")
+code("""
+setState(() {
+  _pdf = pdf;
+  _build = (_) async => bytes;   // new object ONLY when the PDF changed
+});
+""")
+
+h2("When does it regenerate? Identity vs equality")
+table(["Change", "Regenerates?", "Why"], [
+    ["Parent rebuilds with an equal invoice/theme", "No",
+     "values compared with == (we added == to InvoiceTheme, InvoiceLabels, "
+     "InvoiceTableStyle this phase)"],
+    ["Invoice data, template, theme or labels change", "Yes", ""],
+    ["allowPrinting / maxPageWidth / colours of the frame", "No",
+     "presentation of the preview only"],
+], [62, 26, 82])
+simple("Identity asks 'is it the same box?'. Equality asks 'is the same "
+       "thing inside?'. Widgets are rebuilt constantly, so we must compare "
+       "what is inside, otherwise we would redo expensive work all the time.")
+
+h2("Lifecycle of the State")
+code("""
+initState()            -> _generate()
+didUpdateWidget(old)   -> if inputs changed: _generate()
+_generate():
+  final generation = ++_generation;          // ticket number
+  pdf = await InvoiceGenerator.generate(...);
+  if (!mounted || generation != _generation) return;   // stale -> drop
+  setState(...)                               // show it
+""")
+bullets([
+    "<b>mounted check:</b> the user may leave the screen before the PDF is "
+    "ready; calling setState then would throw.",
+    "<b>Ticket number:</b> if the user edits again while a PDF is being "
+    "built, the older result arrives later and is dropped, so the screen "
+    "can never jump back to an older version.",
+    "<b>Previous PDF stays visible</b> while the next one is generated (no "
+    "blank flash); the spinner only appears the very first time.",
+    "<b>Errors are UI, not crashes:</b> invalid data shows the list of "
+    "problems (or your errorBuilder), and fixing the data brings the "
+    "preview back.",
+])
+
+h2("A widget-testing lesson: fake time vs real time")
+p("Widget tests run in a <b>fake-async zone</b>: timers do not really wait. "
+  "PDF generation does real work, so the tests wrap waiting in "
+  "<font face='Courier'>tester.runAsync()</font>. The first test run still "
+  "failed: the PDF was generated (the callback fired) but the screen showed "
+  "the spinner.")
+callout("Why: microtasks run after the frame",
+        "The generation started in initState, inside the fake zone. Its last "
+        "step (setState) ran as a microtask <i>during</i> "
+        "<font face='Courier'>tester.pump()</font> - after that frame had "
+        "already been built. Nothing drew the new state. Fix: pump one more "
+        "frame after the event. The widget was correct; the test helper "
+        "was not.", AMBER_BG, AMBER)
+p("Two more tests were wrong, not the widget: one expected a regeneration "
+  "that correctly never happened (equal invoice), and one assumed "
+  "generations would overlap, but with cached fonts each finished before "
+  "the next edit. Lesson: when a test fails, first ask <b>which side is "
+  "wrong</b> - the code or the test.")
+
+h2("Tests added (12)")
+bullets([
+    "Loader first, then PdfPreview; the bytes shown equal the generated PDF.",
+    "Toolbar hidden by default; enabling printing does not regenerate.",
+    "Invalid data -> default error lists 'items[0].quantity: must not be "
+    "negative'; custom loading/error builders are used.",
+    "Equal inputs -> no regeneration and the <i>same</i> build function "
+    "(proves no flicker).",
+    "Invoice, template, theme changes each regenerate; quick edits end on "
+    "the latest; recovery after fixing an error.",
+    "Value equality of InvoiceTheme (fonts by identity), InvoiceLabels, "
+    "InvoiceTableStyle.",
+])
+code("""
+flutter analyze                  ->  No issues found!
+flutter test                     ->  +200: All tests passed!
+oldest versions (printing 5.14.3, pdf 3.12.0)  ->  +200 passed
+""")
+p("Not verifiable in unit tests: the page images themselves (they are drawn "
+  "by the native printing plugin). We check them visually in the example "
+  "app in Phase 8.")
+p("<b>Next (Phase 7):</b> InvoiceGenerator.save / share / print, with an "
+  "honest per-platform support table.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

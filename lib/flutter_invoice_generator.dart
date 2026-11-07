@@ -33,4 +33,5 @@ export 'src/pdf/invoice_pdf.dart';
 export 'src/pdf/invoice_table_style.dart';
 export 'src/pdf/invoice_theme.dart';
 export 'src/pdf/templates/invoice_template.dart' show InvoiceTemplate;
+export 'src/preview/invoice_preview.dart';
 export 'src/validation/invoice_validator.dart';

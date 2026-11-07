@@ -2,10 +2,10 @@
 
 Create professional invoice PDFs in Flutter with a few lines of code.
 
-> **Status: in development (Phase 5 of 10).** Models, validation, exact
-> calculations, PDF generation with three templates (Classic, Modern,
-> Minimal), theming and optional QR codes are ready. Preview and
-> save/share/print are coming next. Not yet on pub.dev.
+> **Status: in development (Phase 6 of 10).** Models, validation, exact
+> calculations, PDF generation with three templates, theming, QR codes and
+> the `InvoicePreview` widget are ready. Save/share/print and the example
+> app are coming next. Not yet on pub.dev.
 
 ```dart
 final invoice = Invoice(
@@ -40,6 +40,11 @@ final pdf = await InvoiceGenerator.generate(
   template: InvoiceTemplate.modern, // classic | modern | minimal
   theme: InvoiceTheme(primaryColor: PdfColor.fromHex('#16A34A')),
 );
+```
+
+```dart
+// In your widget tree - shows the real PDF, updates when the invoice changes.
+InvoicePreview(invoice: invoice, template: InvoiceTemplate.modern)
 ```
 
 Money math uses exact decimals (no floating-point drift) and rounds half
