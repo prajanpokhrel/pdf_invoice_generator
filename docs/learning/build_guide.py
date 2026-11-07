@@ -186,14 +186,15 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 34 * mm),
+          Spacer(1, 28 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
                     S["subtitle"]),
           Paragraph("Chapter 6: Phase 6 - Preview Widget", S["subtitle"]),
           Paragraph("Chapter 7: Phase 7 - Save, Share, Print", S["subtitle"]),
-          Paragraph("Status: Phase 7 complete.", S["subtitle"]),
+          Paragraph("Chapter 8: Phase 8 - Example App", S["subtitle"]),
+          Paragraph("Status: Phase 8 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1568,6 +1569,116 @@ web (Brave) -> +121 passed     |  oldest versions -> +214 passed
 """)
 p("<b>Not verified yet:</b> the real native dialogs - checked by hand on "
   "macOS in the example app. <b>Next (Phase 8):</b> the example app.")
+
+
+# ==========================================================================
+# CHAPTER 8 - Phase 8: example app
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 8 - Phase 8: The example app")
+p("<b>Invoice Studio</b> (<font face='Courier'>example/</font>) is the "
+  "package's demo. pub.dev shows it on the package page, and developers "
+  "copy from it, so it must be correct and readable - not only pretty.")
+shots = Table([[
+    Image(str(IMG / "app_modern.png"), width=82 * mm, height=61.5 * mm),
+    Image(str(IMG / "app_minimal.png"), width=82 * mm, height=61.5 * mm),
+], [Paragraph("Real macOS app, Modern template. The page image is drawn by "
+              "the native printing plugin.", S["cell"]),
+    Paragraph("After tapping 'Minimal' in the editor: the preview updated.",
+              S["cell"])]], colWidths=[85 * mm] * 2)
+shots.setStyle(TableStyle([
+    ("BOX", (0, 0), (0, 0), 0.5, colors.HexColor("#CBD5E1")),
+    ("BOX", (1, 0), (1, 0), 0.5, colors.HexColor("#CBD5E1")),
+    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+]))
+story.append(shots)
+story.append(Spacer(1, 10))
+
+h2("Structure")
+code("""
+example/
+  pubspec.yaml             flutter_invoice_generator: path: ../
+  assets/logo.png          demo logo (InvoiceLogo.asset)
+  lib/main.dart            MaterialApp, light + dark theme
+  lib/src/invoice_draft.dart   mutable form state -> toInvoice()
+  lib/src/editor_panel.dart    form sections (style, business, customer,
+                               items, discount & tax, details & payment)
+  lib/src/home_page.dart       layout, debounce, preview, actions
+  test/widget_test.dart        7 tests (draft + layouts + validation)
+  integration_test/app_test.dart  runs inside the real app
+  macos/Runner/*.entitlements  + print, + network client
+""")
+
+h2("Key idea: a mutable draft feeding immutable models")
+p("The package's models are immutable (Chapter 2) - perfect for data, "
+  "awkward for a form where the user edits one field at a time. The app "
+  "keeps a small <font face='Courier'>InvoiceDraft extends ChangeNotifier</font> "
+  "with plain mutable fields and converts it on demand:")
+code("""
+draft.update(() => draft.customerName = value);   // form changes the draft
+final invoice = draft.toInvoice();                // package model, immutable
+""")
+simple("The draft is the notepad you scribble on; toInvoice() writes a clean "
+       "copy on official paper. The package only ever sees the clean copy.")
+
+h2("UX details worth copying")
+bullets([
+    "<b>Debounce:</b> the preview updates 350 ms after the user stops typing "
+    "(a Timer that is reset on every change), so the PDF is not rebuilt on "
+    "every keystroke.",
+    "<b>Reuse the PDF:</b> InvoicePreview.onGenerated stores the PDF; "
+    "Share/Print/Save call <font face='Courier'>pdf.share()</font> etc. - no "
+    "second generation, and what you share is exactly what you see.",
+    "<b>Validation from the package:</b> a banner lists "
+    "<font face='Courier'>InvoiceValidator.validate()</font> issues; the form "
+    "itself does not duplicate the rules.",
+    "<b>Responsive:</b> 960 px or wider = editor | preview side by side; "
+    "narrower = Edit / Preview tabs (editor kept alive when switching).",
+    "<b>Stable keys</b> on item rows (ValueKey(item.id)) so deleting item 1 "
+    "does not move its text into item 2.",
+    "<b>iPad share:</b> the Share button passes its own rectangle as "
+    "sharePositionOrigin.",
+])
+
+h2("Bugs found while building it")
+callout("Phone overflow (found by a widget test)",
+        "At 400 px wide the currency dropdown overflowed by 23 px. Fix: "
+        "<font face='Courier'>isExpanded: true</font>. The test sets "
+        "<font face='Courier'>tester.view.physicalSize</font> to a phone size "
+        "- an easy way to test small screens.", AMBER_BG, AMBER)
+callout("Using BuildContext after await (found by the analyzer)",
+        "The error colour was read with Theme.of(context) <i>after</i> an "
+        "await. If the screen closed meanwhile, that context is dead. Fix: "
+        "read messenger and colours before the first await.", AMBER_BG, AMBER)
+
+h2("Integration test: proof on a real platform")
+p("Unit tests fake the plugins. An <b>integration test</b> runs inside the "
+  "real macOS app with the real plugins:")
+code("""
+cd example && flutter test integration_test -d macos
+""")
+bullets([
+    "Waits until the native plugin has drawn page images inside "
+    "InvoicePreview, then saves a screenshot "
+    "(<font face='Courier'>RenderRepaintBoundary.toImage()</font>) - the "
+    "pictures above.",
+    "Taps 'Minimal', waits for the debounce, checks the preview re-renders.",
+    "<font face='Courier'>save()</font> wrote "
+    "<font face='Courier'>~/Library/Containers/&lt;app id&gt;/Data/Documents/"
+    "INT-TEST-1.pdf</font> - exactly the sandbox path in our README table.",
+])
+callout("Debugging by asking the screen",
+        "The first run timed out. Instead of guessing, the test printed what "
+        "was on screen: the 'Edit / Preview' tabs. The test window is 800 px, "
+        "below the 960 px breakpoint, so the app had correctly chosen the "
+        "phone layout - the preview was on the hidden tab. The fix was in "
+        "the test (tap 'Preview'), not in the app.")
+p("<b>Still by hand:</b> the real print dialog and share menu are modal "
+  "system windows that tests cannot click. You verify them by running the "
+  "app (see the end-of-phase message).")
+code("""
+package tests 214 passed | example tests 7 passed | integration (macOS) 2 passed
+""")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,
