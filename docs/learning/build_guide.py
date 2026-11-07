@@ -186,7 +186,7 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 28 * mm),
+          Spacer(1, 22 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
@@ -194,7 +194,8 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 6: Phase 6 - Preview Widget", S["subtitle"]),
           Paragraph("Chapter 7: Phase 7 - Save, Share, Print", S["subtitle"]),
           Paragraph("Chapter 8: Phase 8 - Example App", S["subtitle"]),
-          Paragraph("Status: Phase 8 complete.", S["subtitle"]),
+          Paragraph("Chapter 9: Phase 9 - Documentation", S["subtitle"]),
+          Paragraph("Status: Phase 9 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1679,6 +1680,80 @@ p("<b>Still by hand:</b> the real print dialog and share menu are modal "
 code("""
 package tests 214 passed | example tests 7 passed | integration (macOS) 2 passed
 """)
+
+
+# ==========================================================================
+# CHAPTER 9 - Phase 9: documentation
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 9 - Phase 9: Documentation")
+p("For a package, documentation <i>is</i> the product's front door: pub.dev "
+  "shows the README as the package page, and developers decide in about two "
+  "minutes whether to use it. This phase added or rewrote four things:")
+table(["File", "What it is for"], [
+    ["README.md", "The pub.dev page: overview, install, quick start, complete "
+     "example, templates, customization, tax, discounts, currency, "
+     "calculations, PDF, multi-page, preview, save/share/print, platform "
+     "table, errors, FAQ, troubleshooting, roadmap"],
+    ["CHANGELOG.md", "What changed in each version (Keep a Changelog style). "
+     "pub.dev shows it in a 'Changelog' tab"],
+    ["LICENSE", "MIT for the code + note that the fonts are under the OFL"],
+    ["dartdoc comments", "The API reference (/// comments) - checked with "
+     "dart doc: 0 warnings, 0 errors"],
+], [34, 136])
+
+h2("How the README is organised")
+bullets([
+    "<b>First screen:</b> one line of code, six check-marks, three template "
+    "pictures. A reader knows what it does before scrolling.",
+    "<b>Quick start is tiny</b> (5 required fields), then a <b>complete "
+    "example</b> that uses almost every option - easy to copy and delete "
+    "what you do not need.",
+    "<b>Honesty sections:</b> the platform table says how each cell was "
+    "verified, and the troubleshooting section lists real problems we hit "
+    "while building (hot restart, macOS entitlement, date locales, fonts, "
+    "CORS, private folders, an upstream image/pdf bug).",
+])
+
+h2("Docs that cannot lie: test/readme_test.dart")
+p("Every README snippet is repeated in a test. If someone changes the API "
+  "and forgets the README, a test fails. It also checks the numbers written "
+  "in README comments (700, 711.9, 915.3, 'Rs. 1,234.50', ...).")
+callout("It caught two real mistakes",
+        "<b>1. A wrong number in the README:</b> the complete example said "
+        "<font face='Courier'>// 1037.34</font>, copied from an older sample "
+        "with an extra 'Hosting' item. The real total is 915.30."
+        "<br/><br/><b>2. A real package bug:</b> "
+        "<font face='Courier'>InvoiceFormatter.money(1.2345)</font> printed "
+        "KD1.234 while the calculator says 1.235. The formatter gave the raw "
+        "double to intl, which rounds the binary value 1.23449999... On the "
+        "PDF this meant a unit price of 1.005 showed '$1.00' next to a line "
+        "total of '$1.01'. Fix: the formatter now rounds with the same exact "
+        "decimal code as the calculator.", AMBER_BG, AMBER)
+simple("Writing the documentation is also a final code review: explaining "
+       "a feature in plain words forces you to try it the way a new user "
+       "would.")
+
+h2("Choosing a license")
+p("<b>MIT</b> lets anyone use the package, including in commercial apps, as "
+  "long as they keep the copyright notice. That fits the plan: a free, "
+  "popular core, with possible paid extras (premium templates, support) "
+  "sold separately - not inside this package. The bundled fonts keep their "
+  "own SIL Open Font License, which is shipped next to them.")
+
+h2("What is still a placeholder")
+bullets([
+    "Image links in the README use <font face='Courier'>OWNER/REPO</font>; "
+    "they need your GitHub repository (pub.dev cannot show relative images).",
+    "The copyright holder name in LICENSE.",
+    "Manual check of the native print dialog / share menu on macOS.",
+])
+code("""
+flutter analyze -> No issues | flutter test -> +224 | dart doc -> 0 warnings
+""")
+p("<b>Next (Phase 10):</b> pubspec metadata (repository, topics, "
+  "screenshots), .pubignore, version 0.1.0, and "
+  "<font face='Courier'>dart pub publish --dry-run</font> until it is clean.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

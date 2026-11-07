@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 
+import '../calculation/money.dart';
 import '../models/currency.dart';
 
 /// Formats money, quantities, percentages and dates the same way the PDF
@@ -87,13 +88,20 @@ final class InvoiceFormatter {
 
   /// Formats [amount] with the currency symbol, for example `$1,234.50`,
   /// `Rs. 1,234.50` or `-$5.00`.
+  ///
+  /// The amount is rounded exactly like `InvoiceCalculator` does (half away
+  /// from zero on the exact decimal value), so `1.005` shows as `$1.01`,
+  /// matching the calculated totals. Throws an [ArgumentError] for NaN or
+  /// infinity.
   String money(num amount) {
-    final digits = _money.format(amount.abs());
+    final places = currency.decimalDigits;
+    final rounded = minorUnitsToDouble(toMinorUnits(amount, places), places);
+    final digits = _money.format(rounded.abs());
     final space = currency.spaceBetweenSymbolAndAmount ? ' ' : '';
     final body = currency.symbolBeforeAmount
         ? '${currency.symbol}$space$digits'
         : '$digits$space${currency.symbol}';
-    return amount < 0 ? '-$body' : body;
+    return rounded < 0 ? '-$body' : body;
   }
 
   /// Formats a quantity with up to 4 decimals, for example `2.5` or `1,000`.

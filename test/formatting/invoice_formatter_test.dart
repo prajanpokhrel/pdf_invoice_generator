@@ -11,6 +11,18 @@ void main() {
       expect(f.money(1129999988700), r'$1,129,999,988,700.00');
     });
 
+    test('rounds like the calculator, not like binary doubles', () {
+      // 1.005 and 1.2345 are stored as 1.00499... and 1.23449... in binary.
+      expect(InvoiceFormatter(currency: Currency.usd).money(1.005), r'$1.01');
+      const kwd = Currency(code: 'KWD', symbol: 'KD', decimalDigits: 3);
+      expect(InvoiceFormatter(currency: kwd).money(1.2345), 'KD1.235');
+      expect(InvoiceFormatter(currency: Currency.jpy).money(2.5), '¥3');
+    });
+
+    test('a value that rounds to zero has no minus sign', () {
+      expect(InvoiceFormatter(currency: Currency.usd).money(-0.001), r'$0.00');
+    });
+
     test('negative amounts put the sign first', () {
       expect(InvoiceFormatter(currency: Currency.usd).money(-70), r'-$70.00');
     });

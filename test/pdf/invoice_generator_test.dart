@@ -129,6 +129,19 @@ void main() {
       expect(bare, isNot(contains('PAYMENT')));
     });
 
+    test('unit prices are rounded consistently with line totals', () async {
+      final pdf = await InvoiceGenerator.generate(
+        sampleInvoice(
+          items: [InvoiceItem(name: 'Tiny', quantity: 1, unitPrice: 1.005)],
+        ),
+        theme: searchableTheme(),
+      );
+      final inspector = PdfInspector(pdf.bytes);
+      // Unit price column and amount column both show 1.01.
+      expect(inspector.count(r'$1.01'), 3); // price, amount, subtotal
+      expect(inspector.text, isNot(contains(r'$1.00')));
+    });
+
     test('labels can be translated or hidden', () async {
       final pdf = await InvoiceGenerator.generate(
         sampleInvoice(),
