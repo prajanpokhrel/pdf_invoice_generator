@@ -8,6 +8,7 @@ import 'customer.dart';
 import 'discount.dart';
 import 'invoice_detail.dart';
 import 'invoice_item.dart';
+import 'invoice_qr_code.dart';
 import 'payment_information.dart';
 import 'tax.dart';
 
@@ -51,6 +52,7 @@ final class Invoice {
     this.notes,
     this.terms,
     this.paymentInformation,
+    this.qrCode,
     List<InvoiceDetail> details = const [],
     Map<String, String> metadata = const {},
   })  : items = List.unmodifiable(items),
@@ -95,6 +97,10 @@ final class Invoice {
   /// How the customer can pay.
   final PaymentInformation? paymentInformation;
 
+  /// Optional QR code (payment link, invoice link or custom text), printed
+  /// next to the payment details.
+  final InvoiceQrCode? qrCode;
+
   /// Extra label/value rows printed in the header, such as `PO Number`.
   final List<InvoiceDetail> details;
 
@@ -117,6 +123,7 @@ final class Invoice {
     String? notes,
     String? terms,
     PaymentInformation? paymentInformation,
+    InvoiceQrCode? qrCode,
     List<InvoiceDetail>? details,
     Map<String, String>? metadata,
   }) {
@@ -133,6 +140,7 @@ final class Invoice {
       notes: notes ?? this.notes,
       terms: terms ?? this.terms,
       paymentInformation: paymentInformation ?? this.paymentInformation,
+      qrCode: qrCode ?? this.qrCode,
       details: details ?? this.details,
       metadata: metadata ?? this.metadata,
     );
@@ -153,6 +161,7 @@ final class Invoice {
       other.notes == notes &&
       other.terms == terms &&
       other.paymentInformation == paymentInformation &&
+      other.qrCode == qrCode &&
       listEquals(other.details, details) &&
       mapEquals(other.metadata, metadata);
 
@@ -170,6 +179,7 @@ final class Invoice {
         notes,
         terms,
         paymentInformation,
+        qrCode,
         Object.hashAll(details),
         mapHash(metadata),
       );

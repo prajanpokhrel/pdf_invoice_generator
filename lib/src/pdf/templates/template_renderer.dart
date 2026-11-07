@@ -5,6 +5,8 @@ import 'package:pdf/widgets.dart' as pw;
 import '../render_context.dart';
 import 'classic_template.dart';
 import 'invoice_template.dart';
+import 'minimal_template.dart';
+import 'modern_template.dart';
 
 /// Draws an invoice. Templates only decide the look: they read data and
 /// totals from the [RenderContext] and never calculate anything.
@@ -22,4 +24,6 @@ abstract interface class TemplateRenderer {
 /// The renderer for [template].
 TemplateRenderer rendererFor(InvoiceTemplate template) => switch (template.id) {
       TemplateId.classic => const ClassicTemplate(),
+      TemplateId.modern => const ModernTemplate(),
+      TemplateId.minimal => const MinimalTemplate(),
     };

@@ -11,36 +11,59 @@ import '../../calculation/invoice_totals.dart';
 import '../../models/discount.dart';
 import '../render_context.dart';
 
-/// How a template wants the items table to look.
+/// How a template wants the items table to look. The theme's
+/// `InvoiceTableStyle` can override each field (see [resolve]).
 final class ItemsTableStyle {
   /// Creates a style.
   const ItemsTableStyle({
-    required this.headerBackground,
     required this.headerTextColor,
+    required this.borderColor,
+    this.headerBackground,
+    this.headerUnderline,
     this.stripeColor,
-    this.border,
-    this.rowDivider,
-    this.cellPadding =
-        const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4.5),
+    this.showGrid = false,
+    this.showRowDividers = true,
+    this.rowPadding = 4.5,
   });
 
-  /// Background of the header row.
+  /// Background of the header row, or `null` for none.
   final PdfColor? headerBackground;
 
   /// Text colour of the header row.
   final PdfColor headerTextColor;
 
+  /// A line under the header row, or `null` for none.
+  final PdfColor? headerUnderline;
+
   /// Background of every second body row, or `null` for none.
   final PdfColor? stripeColor;
 
-  /// Full table border, or `null`.
-  final pw.TableBorder? border;
+  /// Colour of the grid and row dividers.
+  final PdfColor borderColor;
 
-  /// Line under each body row, or `null`.
-  final pw.BorderSide? rowDivider;
+  /// Full grid around every cell.
+  final bool showGrid;
 
-  /// Padding inside every cell.
-  final pw.EdgeInsets cellPadding;
+  /// Thin line under each body row (ignored when [showGrid] is on).
+  final bool showRowDividers;
+
+  /// Vertical padding inside each cell.
+  final double rowPadding;
+
+  /// This style with the theme's overrides applied.
+  ItemsTableStyle resolve(RenderContext ctx) {
+    final o = ctx.theme.tableStyle;
+    return ItemsTableStyle(
+      headerBackground: o.headerColor ?? headerBackground,
+      headerTextColor: o.headerTextColor ?? headerTextColor,
+      headerUnderline: headerUnderline,
+      stripeColor: o.stripeColor ?? stripeColor,
+      borderColor: o.borderColor ?? borderColor,
+      showGrid: o.showBorders ?? showGrid,
+      showRowDividers: showRowDividers,
+      rowPadding: o.rowPadding ?? rowPadding,
+    );
+  }
 }
 
 final class _Column {
@@ -51,8 +74,10 @@ final class _Column {
   final pw.Widget Function(InvoiceLineTotals line) cell;
 }
 
-/// Builds the items table for [ctx] in the given [style].
-pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle style) {
+/// Builds the items table for [ctx] in the template's [defaults], with the
+/// theme's table overrides applied.
+pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle defaults) {
+  final style = defaults.resolve(ctx);
   final f = ctx.formatter;
   final l = ctx.labels;
 
@@ -109,17 +134,28 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle style) {
     ),
   ];
 
+  final padding = pw.EdgeInsets.symmetric(
+    horizontal: 6,
+    vertical: style.rowPadding,
+  );
+  final divider = pw.BorderSide(color: style.borderColor, width: 0.5);
+
   pw.Widget cell(pw.Widget child, pw.Alignment align) => pw.Container(
-        padding: style.cellPadding,
+        padding: padding,
         alignment: align,
         child: child,
       );
 
   final header = pw.TableRow(
     repeat: true,
-    decoration: style.headerBackground == null
-        ? null
-        : pw.BoxDecoration(color: style.headerBackground),
+    decoration: pw.BoxDecoration(
+      color: style.headerBackground,
+      border: style.headerUnderline == null
+          ? null
+          : pw.Border(
+              bottom: pw.BorderSide(color: style.headerUnderline!, width: 1),
+            ),
+    ),
     children: [
       for (final c in columns)
         cell(
@@ -139,9 +175,9 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle style) {
         decoration: pw.BoxDecoration(
           color:
               style.stripeColor != null && i.isOdd ? style.stripeColor : null,
-          border: style.rowDivider == null
-              ? null
-              : pw.Border(bottom: style.rowDivider!),
+          border: style.showRowDividers && !style.showGrid
+              ? pw.Border(bottom: divider)
+              : null,
         ),
         children: [
           for (final c in columns) cell(c.cell(ctx.totals.lines[i]), c.align),
@@ -150,7 +186,9 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle style) {
   ];
 
   return pw.Table(
-    border: style.border,
+    border: style.showGrid
+        ? pw.TableBorder.all(color: style.borderColor, width: 0.5)
+        : null,
     columnWidths: {
       for (var i = 0; i < columns.length; i++)
         i: pw.FlexColumnWidth(columns[i].flex),

@@ -2,6 +2,8 @@ import 'package:meta/meta.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import 'invoice_table_style.dart';
+
 /// Visual settings for the generated PDF: page size, colours, fonts,
 /// sizes and formats.
 ///
@@ -13,8 +15,13 @@ import 'package:pdf/widgets.dart' as pw;
 ///   primaryColor: PdfColor.fromHex('#16A34A'),
 ///   pageFormat: PdfPageFormat.letter,
 ///   dateFormat: 'dd/MM/yyyy',
+///   borderRadius: 8,
+///   tableStyle: InvoiceTableStyle(stripeColor: PdfColors.grey100),
 /// );
 /// ```
+///
+/// Every template reads the same theme, so colours, fonts and spacing carry
+/// over when you switch templates.
 ///
 /// ### Fonts
 /// By default the package uses its bundled Noto Sans font, which covers
@@ -36,6 +43,13 @@ final class InvoiceTheme {
     this.fontFallback = const [],
     this.locale = 'en_US',
     this.dateFormat = 'MMM d, yyyy',
+    this.sectionSpacing = 14,
+    this.borderRadius = 6,
+    this.tableStyle = const InvoiceTableStyle(),
+    this.showLogo = true,
+    this.showPageNumbers = true,
+    this.showContinuationHeader = true,
+    this.footerText,
   });
 
   /// Page size. Use `PdfPageFormat.a4` (default) or `PdfPageFormat.letter`.
@@ -73,6 +87,30 @@ final class InvoiceTheme {
   /// Date pattern, for example `MMM d, yyyy` (default) or `dd/MM/yyyy`.
   final String dateFormat;
 
+  /// Vertical space between sections, in points. Smaller values fit more
+  /// on a page.
+  final double sectionSpacing;
+
+  /// Corner radius for boxes in templates that use rounded shapes
+  /// (Modern). `0` gives square corners.
+  final double borderRadius;
+
+  /// Overrides for the items table.
+  final InvoiceTableStyle tableStyle;
+
+  /// Whether to print the seller logo, when one is set.
+  final bool showLogo;
+
+  /// Whether to print "Page X of Y" in the footer.
+  final bool showPageNumbers;
+
+  /// Whether pages 2+ start with a small "INVOICE INV-1001 (continued)" line.
+  final bool showContinuationHeader;
+
+  /// Text on the left of every page footer. `null` prints the seller name;
+  /// an empty string prints nothing.
+  final String? footerText;
+
   /// Returns a copy with the given fields replaced.
   InvoiceTheme copyWith({
     PdfPageFormat? pageFormat,
@@ -86,6 +124,13 @@ final class InvoiceTheme {
     List<pw.Font>? fontFallback,
     String? locale,
     String? dateFormat,
+    double? sectionSpacing,
+    double? borderRadius,
+    InvoiceTableStyle? tableStyle,
+    bool? showLogo,
+    bool? showPageNumbers,
+    bool? showContinuationHeader,
+    String? footerText,
   }) {
     return InvoiceTheme(
       pageFormat: pageFormat ?? this.pageFormat,
@@ -99,6 +144,14 @@ final class InvoiceTheme {
       fontFallback: fontFallback ?? this.fontFallback,
       locale: locale ?? this.locale,
       dateFormat: dateFormat ?? this.dateFormat,
+      sectionSpacing: sectionSpacing ?? this.sectionSpacing,
+      borderRadius: borderRadius ?? this.borderRadius,
+      tableStyle: tableStyle ?? this.tableStyle,
+      showLogo: showLogo ?? this.showLogo,
+      showPageNumbers: showPageNumbers ?? this.showPageNumbers,
+      showContinuationHeader:
+          showContinuationHeader ?? this.showContinuationHeader,
+      footerText: footerText ?? this.footerText,
     );
   }
 }

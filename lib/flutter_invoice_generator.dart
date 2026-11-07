@@ -24,11 +24,13 @@ export 'src/models/invoice_detail.dart';
 export 'src/models/invoice_item.dart';
 // Only the base type is public; the concrete logo classes are internal.
 export 'src/models/invoice_logo.dart' show InvoiceLogo;
+export 'src/models/invoice_qr_code.dart';
 export 'src/models/payment_information.dart';
 export 'src/models/tax.dart';
 export 'src/pdf/invoice_generator.dart' show InvoiceGenerator;
 export 'src/pdf/invoice_labels.dart';
 export 'src/pdf/invoice_pdf.dart';
+export 'src/pdf/invoice_table_style.dart';
 export 'src/pdf/invoice_theme.dart';
 export 'src/pdf/templates/invoice_template.dart' show InvoiceTemplate;
 export 'src/validation/invoice_validator.dart';

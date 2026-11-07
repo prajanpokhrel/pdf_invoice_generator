@@ -90,7 +90,14 @@ pw.ImageProvider decodeLogo(Uint8List bytes) {
   if (bytes.isEmpty) {
     throw const InvoiceImageException('Logo image is empty (0 bytes).');
   }
-  final decoder = img.findDecoderForData(bytes);
+  img.Decoder? decoder;
+  try {
+    decoder = img.findDecoderForData(bytes);
+  } on Object {
+    // Some versions of package:image throw (for example a RangeError) when
+    // probing very short data instead of returning null.
+    decoder = null;
+  }
   // Only formats with a reliable file signature are accepted. Formats such
   // as TGA have almost no header, so random bytes can look like a "valid"
   // TGA and would silently print garbage instead of failing.

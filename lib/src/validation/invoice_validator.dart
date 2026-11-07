@@ -1,3 +1,5 @@
+import 'package:pdf/widgets.dart' show Barcode;
+
 import '../calculation/money.dart';
 import '../calculation/totals_engine.dart';
 import '../exceptions/invoice_exceptions.dart';
@@ -29,6 +31,7 @@ import '../models/tax.dart';
 ///   and the same tax must not be listed twice.
 /// * Percentage discounts must be between 0 and 100; fixed discounts must
 ///   not be negative and not larger than the amount they apply to.
+/// * A QR code, when set, must have non-empty data short enough to encode.
 /// * The total must not exceed 10^15 minor units (10 trillion USD), the
 ///   largest amount that every platform can represent exactly.
 abstract final class InvoiceValidator {
@@ -73,6 +76,16 @@ abstract final class InvoiceValidator {
     // --- Invoice-level tax and discount ------------------------------------
     _checkTaxes(invoice.taxes, 'taxes', add);
     _checkDiscount(invoice.discount, 'discount', add);
+
+    // --- QR code -----------------------------------------------------------
+    final qr = invoice.qrCode;
+    if (qr != null) {
+      if (qr.data.trim().isEmpty) {
+        add('qrCode.data', 'must not be empty');
+      } else if (!Barcode.qrCode().isValid(qr.data)) {
+        add('qrCode.data', 'is too long to fit in a QR code');
+      }
+    }
 
     // --- Rules that need the calculated amounts ----------------------------
     // Only safe to compute once every number is known to be valid.

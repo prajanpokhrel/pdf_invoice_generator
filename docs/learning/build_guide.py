@@ -186,10 +186,12 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 52 * mm),
+          Spacer(1, 46 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
-          Paragraph("Status: Phase 4 complete.", S["subtitle"]),
+          Paragraph("Chapter 5: Phase 5 - Templates and Customization",
+                    S["subtitle"]),
+          Paragraph("Status: Phase 5 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1175,6 +1177,149 @@ flutter test --platform chrome   ->  +119 (pure-Dart tests, Brave)
 """)
 p("<b>Next (Phase 5):</b> Modern and Minimal templates, more theme options "
   "(spacing, radius, table style, header/footer), optional QR code.")
+
+
+# ==========================================================================
+# CHAPTER 5 - Phase 5: templates, customization, QR codes
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 5 - Phase 5: Templates and customization")
+p("Same invoice, three looks. Only one argument changes:")
+code("""
+await InvoiceGenerator.generate(invoice, template: InvoiceTemplate.classic);
+await InvoiceGenerator.generate(invoice, template: InvoiceTemplate.modern);
+await InvoiceGenerator.generate(invoice, template: InvoiceTemplate.minimal);
+""")
+shots = Table([[
+    Image(str(IMG / "template_classic.png"), width=54 * mm, height=76 * mm),
+    Image(str(IMG / "template_modern.png"), width=54 * mm, height=76 * mm),
+    Image(str(IMG / "template_minimal.png"), width=54 * mm, height=76 * mm),
+], [Paragraph("<b>Classic</b> - grid table, coloured header", S["cell"]),
+    Paragraph("<b>Modern</b> - colour band, amount-due card, stripes",
+              S["cell"]),
+    Paragraph("<b>Minimal</b> - no fills, hairlines, white space",
+              S["cell"])]], colWidths=[57 * mm] * 3)
+shots.setStyle(TableStyle([
+    ("BOX", (0, 0), (0, 0), 0.5, colors.HexColor("#CBD5E1")),
+    ("BOX", (1, 0), (1, 0), 0.5, colors.HexColor("#CBD5E1")),
+    ("BOX", (2, 0), (2, 0), 0.5, colors.HexColor("#CBD5E1")),
+    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+]))
+story.append(shots)
+story.append(Spacer(1, 10))
+
+h2("How 3 templates share one engine")
+p("Every template implements the same small internal contract:")
+code("""
+abstract interface class TemplateRenderer {
+  List<pw.Widget> buildContent(RenderContext ctx);   // the page body
+  pw.Widget buildPageHeader(RenderContext ctx, pw.Context page);
+  pw.Widget buildPageFooter(RenderContext ctx, pw.Context page);
+}
+""")
+p("A template is ~100-150 lines that <b>arrange shared sections</b> with "
+  "different styles. It never calculates, validates, loads fonts or "
+  "handles pages - the engine does that once for everybody:")
+table(["Shared section", "Classic", "Modern", "Minimal"], [
+    ["itemsTable", "grid, blue header", "tinted header, stripes, no lines",
+     "no fill, dark underline, hairlines"],
+    ["summaryBox", "filled total row", "grey card + rounded total",
+     "line above total, coloured text"],
+    ["partyBlock / metaTable", "header right side", "3-column info row",
+     "bill-to left, meta right"],
+    ["closingSections (+QR)", "same", "same", "same"],
+    ["page header / footer", "same", "same", "same"],
+], [38, 42, 46, 44])
+simple("Like one kitchen with three plate designs: the food (data and "
+       "totals) is identical, only the plating changes. A test proves it: "
+       "all three templates report exactly the same total, 71190 cents.")
+
+h2("Customization: InvoiceTheme")
+code("""
+InvoiceTheme(
+  primaryColor: PdfColor.fromHex('#16A34A'),   // accent colour
+  secondaryColor: ..., textColor: ...,
+  font: myFont, boldFont: myBold, fontFallback: [devanagari],
+  baseFontSize: 10,            // all text sizes scale from this
+  sectionSpacing: 14,          // NEW: space between sections
+  borderRadius: 6,             // NEW: rounded corners (Modern)
+  tableStyle: InvoiceTableStyle(   // NEW: override the table look
+    headerColor: ..., headerTextColor: ..., stripeColor: ...,
+    borderColor: ..., showBorders: false, rowPadding: 6),
+  showLogo: true,              // NEW
+  showPageNumbers: true,       // NEW
+  showContinuationHeader: true,// NEW
+  footerText: 'Confidential',  // NEW (default: seller name)
+  pageFormat: PdfPageFormat.letter,
+  locale: 'en_US', dateFormat: 'dd/MM/yyyy',
+)
+""")
+p("<b>Template defaults + theme overrides:</b> each template has its own "
+  "table look. <font face='Courier'>InvoiceTableStyle</font> fields are "
+  "all nullable - <font face='Courier'>null</font> means 'keep the "
+  "template's choice'. Internally "
+  "<font face='Courier'>ItemsTableStyle.resolve()</font> merges them with "
+  "<font face='Courier'>??</font>.")
+callout("Backward compatible on purpose",
+        "Every new theme field is optional with a default, and the QR code "
+        "is a new optional Invoice field. Code written for Phase 4 still "
+        "compiles and produces the same PDFs. That is how you add features "
+        "to a package without a breaking release.")
+
+h2("QR codes - zero new dependencies")
+code("""
+Invoice(..., qrCode: InvoiceQrCode.payment('https://pay.example.com/1001'))
+InvoiceQrCode.invoiceUrl('https://example.com/i/1001')  // 'Scan to view online'
+InvoiceQrCode(data: 'any text', caption: 'Our website')
+""")
+bullets([
+    "The pdf package already re-exports the barcode library, so "
+    "<font face='Courier'>pw.BarcodeWidget(barcode: pw.Barcode.qrCode())</font> "
+    "costs nothing extra.",
+    "The QR is printed beside the payment details in every template.",
+    "Validation: empty data, or data too long for a QR code "
+    "(<font face='Courier'>Barcode.qrCode().isValid()</font>), gives an "
+    "InvoiceValidationException on field <font face='Courier'>qrCode.data</font>.",
+    "Captions come from InvoiceLabels (scanToPay, scanToView), so they "
+    "translate with everything else.",
+])
+
+h2("Two bugs found this phase")
+callout("1. Transparent colours print solid in PDF fills",
+        "Modern's 'amount due' card used the primary colour with 8% alpha. "
+        "PDF fills ignore alpha, so it printed solid blue and the text "
+        "disappeared. Found by looking at the rendered page. Fix: mix the "
+        "colour with white ourselves: "
+        "<font face='Courier'>1 - (1 - c) x 0.1</font> per channel.",
+        AMBER_BG, AMBER)
+callout("2. An old library version crashes while probing tiny data",
+        "Running the tests at the oldest allowed versions (pub downgrade) "
+        "showed image 4.10.2's format detection throws a RangeError on a "
+        "4-byte 'logo'. It escaped as a generic error. Fix: the detection "
+        "itself is now inside try/catch, so it is always an "
+        "InvoiceImageException.", AMBER_BG, AMBER)
+
+h2("How we test looks without screenshots")
+bullets([
+    "<b>Colours:</b> the theme uses #336699 = (0.2, 0.4, 0.6). The test "
+    "checks the PDF drawing commands contain <font face='Courier'>0.2 0.4 "
+    "0.6 rg</font> ('rg' = set fill colour) for every template and for "
+    "tableStyle overrides.",
+    "<b>Toggles:</b> no 'Page 1 of 1' when showPageNumbers is false; "
+    "'Confidential' once per page with footerText; no '(continued)' when "
+    "disabled; no image object when showLogo is false.",
+    "<b>Every template:</b> key text present, 150 rows each printed once, "
+    "header repeated per page, identical totals.",
+    "<b>QR:</b> captions, drawn in all templates (many extra drawing "
+    "commands), invalid data rejected.",
+])
+code("""
+flutter analyze                  ->  No issues found!
+flutter test                     ->  +188: All tests passed!
+pub downgrade (oldest versions)  ->  +188: All tests passed!
+""")
+p("<b>Next (Phase 6):</b> the InvoicePreview Flutter widget (shows the real "
+  "PDF, so it always matches), adding the printing package.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

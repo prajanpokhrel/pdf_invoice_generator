@@ -41,6 +41,16 @@ final class RenderContext {
   /// Decoded seller logo, or `null`.
   final pw.ImageProvider? logo;
 
+  /// The seller logo, unless the theme hides it.
+  pw.ImageProvider? get visibleLogo => theme.showLogo ? logo : null;
+
+  /// [InvoiceTheme.sectionSpacing] scaled by [factor].
+  pw.SizedBox gap([double factor = 1]) =>
+      pw.SizedBox(height: theme.sectionSpacing * factor);
+
+  /// A light grey used for table lines.
+  PdfColor get lineColor => const PdfColor.fromInt(0xFFCBD5E1);
+
   /// Whether any item has its own discount (shows the Discount column).
   late final bool showDiscountColumn =
       invoice.items.any((item) => item.discount != null);
@@ -72,10 +82,16 @@ final class RenderContext {
       );
 
   /// A light tint of the primary colour, for backgrounds.
-  PdfColor get primaryTint => PdfColor(
-        theme.primaryColor.red,
-        theme.primaryColor.green,
-        theme.primaryColor.blue,
-        0.08,
+  ///
+  /// Mixed with white into a solid colour: PDF fills ignore the alpha
+  /// channel of a colour, so a transparent colour would print at full
+  /// strength.
+  PdfColor get primaryTint => tint(theme.primaryColor, 0.1);
+
+  /// [color] mixed with white; [amount] 0 is white, 1 is [color].
+  static PdfColor tint(PdfColor color, double amount) => PdfColor(
+        1 - (1 - color.red) * amount,
+        1 - (1 - color.green) * amount,
+        1 - (1 - color.blue) * amount,
       );
 }

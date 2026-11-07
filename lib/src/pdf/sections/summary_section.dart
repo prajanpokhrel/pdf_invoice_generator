@@ -51,54 +51,66 @@ List<SummaryRow> summaryRows(RenderContext ctx) {
 
 /// A right-aligned summary box [width] points wide.
 ///
-/// The grand total row uses [totalBackground] and [totalTextColor].
+/// * [background]: optional card colour behind all rows (rounded by
+///   [radius]).
+/// * [totalBackground] / [totalTextColor]: style of the grand total row.
+/// * [totalTopBorder]: a line above the total instead of a filled row.
 pw.Widget summaryBox(
   RenderContext ctx, {
   double width = 230,
+  PdfColor? background,
   PdfColor? totalBackground,
   PdfColor? totalTextColor,
+  PdfColor? totalTopBorder,
   double radius = 0,
 }) {
   final rows = summaryRows(ctx);
+  pw.BorderRadius? corners(double r) =>
+      r > 0 ? pw.BorderRadius.all(pw.Radius.circular(r)) : null;
+
+  final children = <pw.Widget>[
+    for (final row in rows)
+      if (row.isTotal)
+        pw.Container(
+          margin: const pw.EdgeInsets.only(top: 6),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: pw.BoxDecoration(
+            color: totalBackground,
+            borderRadius: totalBackground == null ? null : corners(radius),
+            border: totalTopBorder == null
+                ? null
+                : pw.Border(
+                    top: pw.BorderSide(color: totalTopBorder, width: 1),
+                  ),
+          ),
+          child: _line(
+            row,
+            ctx.bold.copyWith(
+              fontSize: ctx.theme.baseFontSize * 1.25,
+              color: totalTextColor ?? ctx.theme.textColor,
+            ),
+          ),
+        )
+      else
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          child: _line(row, ctx.body, labelStyle: ctx.muted),
+        ),
+  ];
+
   return pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.end,
     children: [
-      pw.SizedBox(
+      pw.Container(
         width: width,
-        child: pw.Column(
-          children: [
-            for (final row in rows)
-              if (row.isTotal)
-                pw.Container(
-                  margin: const pw.EdgeInsets.only(top: 6),
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 7,
-                  ),
-                  decoration: pw.BoxDecoration(
-                    color: totalBackground,
-                    borderRadius: radius > 0
-                        ? pw.BorderRadius.all(pw.Radius.circular(radius))
-                        : null,
-                  ),
-                  child: _line(
-                    row,
-                    ctx.bold.copyWith(
-                      fontSize: ctx.theme.baseFontSize * 1.25,
-                      color: totalTextColor ?? ctx.theme.textColor,
-                    ),
-                  ),
-                )
-              else
-                pw.Padding(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  child: _line(row, ctx.body, labelStyle: ctx.muted),
-                ),
-          ],
-        ),
+        padding: background == null ? null : const pw.EdgeInsets.all(6),
+        decoration: background == null
+            ? null
+            : pw.BoxDecoration(
+                color: background,
+                borderRadius: corners(radius),
+              ),
+        child: pw.Column(children: children),
       ),
     ],
   );

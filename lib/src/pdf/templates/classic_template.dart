@@ -8,12 +8,12 @@
 //   BILL TO
 //   Customer name / lines
 //   | Item | Qty | Unit price | (Discount) | (Tax) | Amount |   <- coloured
-//   | ...                                                    |
+//   | ...                                                    |   <- grid
 //                                           Subtotal   700.00
 //                                           Discount   -70.00
 //                                           VAT (13%)   81.90
 //                                           [ Total    711.90 ]
-//   PAYMENT DETAILS / NOTES / TERMS / Thank you
+//   PAYMENT DETAILS [QR] / NOTES / TERMS / Thank you
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -33,34 +33,32 @@ final class ClassicTemplate implements TemplateRenderer {
   @override
   List<pw.Widget> buildContent(RenderContext ctx) => [
         _header(ctx),
-        pw.SizedBox(height: 10),
+        ctx.gap(0.7),
         pw.Divider(color: ctx.theme.secondaryColor, thickness: 0.5),
-        pw.SizedBox(height: 8),
+        ctx.gap(0.5),
         partyBlock(
           ctx,
           title: ctx.labels.billTo,
           name: ctx.invoice.customer.name,
           lines: customerLines(ctx, ctx.invoice.customer),
         ),
-        pw.SizedBox(height: 14),
+        ctx.gap(),
         itemsTable(
           ctx,
           ItemsTableStyle(
             headerBackground: ctx.theme.primaryColor,
             headerTextColor: PdfColors.white,
-            border: pw.TableBorder.all(
-              color: const PdfColor.fromInt(0xFFCBD5E1),
-              width: 0.5,
-            ),
+            borderColor: ctx.lineColor,
+            showGrid: true,
           ),
         ),
-        pw.SizedBox(height: 12),
+        ctx.gap(0.85),
         summaryBox(
           ctx,
           totalBackground: ctx.theme.primaryColor,
           totalTextColor: PdfColors.white,
         ),
-        pw.SizedBox(height: 18),
+        ctx.gap(1.3),
         ...closingSections(ctx),
       ];
 
@@ -74,7 +72,7 @@ final class ClassicTemplate implements TemplateRenderer {
 
   pw.Widget _header(RenderContext ctx) {
     final seller = ctx.invoice.seller;
-    final logo = ctx.logo;
+    final logo = logoBox(ctx);
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -82,14 +80,7 @@ final class ClassicTemplate implements TemplateRenderer {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              if (logo != null) ...[
-                pw.ConstrainedBox(
-                  constraints:
-                      const pw.BoxConstraints(maxHeight: 48, maxWidth: 160),
-                  child: pw.Image(logo, fit: pw.BoxFit.contain),
-                ),
-                pw.SizedBox(height: 8),
-              ],
+              if (logo != null) ...[logo, pw.SizedBox(height: 8)],
               partyBlock(
                 ctx,
                 name: seller.name,
@@ -113,21 +104,7 @@ final class ClassicTemplate implements TemplateRenderer {
               ),
             ),
             pw.SizedBox(height: 8),
-            pw.Table(
-              defaultColumnWidth: const pw.IntrinsicColumnWidth(),
-              children: [
-                for (final (label, value) in invoiceMetaRows(ctx))
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.only(right: 12, bottom: 2),
-                        child: pw.Text(label, style: ctx.muted),
-                      ),
-                      pw.Text(value, style: ctx.bold),
-                    ],
-                  ),
-              ],
-            ),
+            metaTable(ctx),
           ],
         ),
       ],

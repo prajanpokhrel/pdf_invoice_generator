@@ -59,3 +59,41 @@ List<(String, String)> invoiceMetaRows(RenderContext ctx) {
     for (final d in inv.details) (d.label, d.value),
   ];
 }
+
+/// The seller logo scaled to fit, or `null` when there is none or the
+/// theme hides it.
+pw.Widget? logoBox(
+  RenderContext ctx, {
+  double maxHeight = 48,
+  double maxWidth = 160,
+}) {
+  final logo = ctx.visibleLogo;
+  if (logo == null) return null;
+  return pw.ConstrainedBox(
+    constraints: pw.BoxConstraints(maxHeight: maxHeight, maxWidth: maxWidth),
+    child: pw.Image(logo, fit: pw.BoxFit.contain),
+  );
+}
+
+/// Invoice number, dates and details as a compact two-column table.
+pw.Widget metaTable(
+  RenderContext ctx, {
+  pw.TextStyle? labelStyle,
+  pw.TextStyle? valueStyle,
+}) {
+  return pw.Table(
+    defaultColumnWidth: const pw.IntrinsicColumnWidth(),
+    children: [
+      for (final (label, value) in invoiceMetaRows(ctx))
+        pw.TableRow(
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(right: 12, bottom: 2),
+              child: pw.Text(label, style: labelStyle ?? ctx.muted),
+            ),
+            pw.Text(value, style: valueStyle ?? ctx.bold),
+          ],
+        ),
+    ],
+  );
+}

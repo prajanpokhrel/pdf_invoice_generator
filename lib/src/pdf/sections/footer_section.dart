@@ -4,6 +4,7 @@
 import 'package:pdf/widgets.dart' as pw;
 
 import '../render_context.dart';
+import 'qr_section.dart';
 
 /// Label/value pairs for the payment information that is set.
 List<(String, String)> paymentRows(RenderContext ctx) {
@@ -21,8 +22,9 @@ List<(String, String)> paymentRows(RenderContext ctx) {
   ];
 }
 
-/// Payment details, notes, terms and the thank-you line, as separate widgets
-/// so the page layout can break between them.
+/// Payment details (with the QR code beside them), notes, terms and the
+/// thank-you line, as separate widgets so the page layout can break between
+/// them.
 ///
 /// The thank-you line is attached to the last section, so it is never left
 /// alone at the top of an otherwise empty page.
@@ -65,24 +67,39 @@ List<pw.Widget> _closingSections(RenderContext ctx) {
         ),
       );
 
-  return [
-    if (payment.isNotEmpty || instructions != null)
-      section(l.paymentInformation, [
-        for (final (label, value) in payment)
-          pw.RichText(
-            text: pw.TextSpan(
-              children: [
-                pw.TextSpan(text: '$label: ', style: ctx.muted),
-                pw.TextSpan(text: value, style: ctx.body),
-              ],
+  final paymentSection = payment.isEmpty && instructions == null
+      ? null
+      : section(l.paymentInformation, [
+          for (final (label, value) in payment)
+            pw.RichText(
+              text: pw.TextSpan(
+                children: [
+                  pw.TextSpan(text: '$label: ', style: ctx.muted),
+                  pw.TextSpan(text: value, style: ctx.body),
+                ],
+              ),
             ),
-          ),
-        if (instructions != null)
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(top: 3),
-            child: pw.Text(instructions, style: ctx.body),
-          ),
-      ]),
+          if (instructions != null)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 3),
+              child: pw.Text(instructions, style: ctx.body),
+            ),
+        ]);
+  final qr = qrBlock(ctx);
+
+  return [
+    if (paymentSection != null || qr != null)
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(child: paymentSection ?? pw.SizedBox()),
+          if (qr != null)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(left: 16, bottom: 10),
+              child: qr,
+            ),
+        ],
+      ),
     if (inv.notes != null)
       section(l.notes, [pw.Text(inv.notes!, style: ctx.body)]),
     if (inv.terms != null)
@@ -93,7 +110,9 @@ List<pw.Widget> _closingSections(RenderContext ctx) {
 /// Small header on pages 2+, so loose pages can be matched to the invoice.
 /// Page 1 already has the full header, so it gets nothing.
 pw.Widget continuationHeader(RenderContext ctx, pw.Context page) {
-  if (page.pageNumber == 1) return pw.SizedBox();
+  if (page.pageNumber == 1 || !ctx.theme.showContinuationHeader) {
+    return pw.SizedBox();
+  }
   return pw.Container(
     margin: const pw.EdgeInsets.only(bottom: 12),
     padding: const pw.EdgeInsets.only(bottom: 6),
@@ -115,18 +134,23 @@ pw.Widget continuationHeader(RenderContext ctx, pw.Context page) {
   );
 }
 
-/// Footer on every page: seller name and "Page X of Y".
+/// Footer on every page: footer text (default: seller name) and
+/// "Page X of Y", both controlled by the theme.
 pw.Widget pageFooter(RenderContext ctx, pw.Context page) {
   return pw.Container(
     margin: const pw.EdgeInsets.only(top: 12),
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text(ctx.invoice.seller.name, style: ctx.muted),
         pw.Text(
-          ctx.labels.formatPageOf(page.pageNumber, page.pagesCount),
+          ctx.theme.footerText ?? ctx.invoice.seller.name,
           style: ctx.muted,
         ),
+        if (ctx.theme.showPageNumbers)
+          pw.Text(
+            ctx.labels.formatPageOf(page.pageNumber, page.pagesCount),
+            style: ctx.muted,
+          ),
       ],
     ),
   );

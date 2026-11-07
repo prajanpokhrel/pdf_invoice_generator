@@ -44,6 +44,9 @@ final class InvoiceLabels {
     this.thankYou = 'Thank you for your business!',
     this.pageOf = 'Page {page} of {pages}',
     this.continued = 'continued',
+    this.scanToPay = 'Scan to pay',
+    this.scanToView = 'Scan to view online',
+    this.amountDue = 'Amount due',
   });
 
   /// Big title, `INVOICE`.
@@ -135,6 +138,15 @@ final class InvoiceLabels {
 
   /// Shown in the header of pages 2 and later.
   final String continued;
+
+  /// Default caption of `InvoiceQrCode.payment`.
+  final String scanToPay;
+
+  /// Default caption of `InvoiceQrCode.invoiceUrl`.
+  final String scanToView;
+
+  /// Heading of the large total shown at the top of the Modern template.
+  final String amountDue;
 
   /// [pageOf] with the numbers filled in.
   String formatPageOf(int page, int pages) =>

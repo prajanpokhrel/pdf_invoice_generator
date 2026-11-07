@@ -95,6 +95,20 @@ void main() {
       expect(a.hashCode, b.hashCode);
     });
 
+    test('QR code is part of value equality', () {
+      final withQr = sampleInvoice().copyWith(
+        qrCode: const InvoiceQrCode.payment('https://pay.example.com/1'),
+      );
+      expect(withQr.qrCode!.type, InvoiceQrCodeType.payment);
+      expect(withQr, isNot(sampleInvoice()));
+      expect(
+        withQr,
+        sampleInvoice().copyWith(
+          qrCode: const InvoiceQrCode.payment('https://pay.example.com/1'),
+        ),
+      );
+    });
+
     test('copyWith keeps untouched fields', () {
       final original = sampleInvoice();
       final copy = original.copyWith(
