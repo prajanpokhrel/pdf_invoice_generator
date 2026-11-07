@@ -2,9 +2,9 @@
 
 Create professional invoice PDFs in Flutter with a few lines of code.
 
-> **Status: in development (Phase 2 of 10).** The data models are ready.
-> The calculation engine, PDF generation, templates, preview and
-> save/share/print are coming in the next phases. Not yet on pub.dev.
+> **Status: in development (Phase 3 of 10).** Data models, validation and
+> the exact calculation engine are ready. PDF generation, templates,
+> preview and save/share/print are coming next. Not yet on pub.dev.
 
 ```dart
 final invoice = Invoice(
@@ -21,6 +21,14 @@ final invoice = Invoice(
   currency: Currency.usd,
 );
 ```
+
+```dart
+final totals = InvoiceCalculator.calculate(invoice);
+print(totals.total); // 711.9  (700 - 10% = 630, + 13% VAT = 711.90)
+```
+
+Money math uses exact decimals (no floating-point drift) and rounds half
+away from zero to the currency's decimal places.
 
 A learning guide that explains every design decision is in
 [docs/learning/flutter_invoice_generator_guide.pdf](docs/learning/flutter_invoice_generator_guide.pdf).

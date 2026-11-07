@@ -185,8 +185,9 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 64 * mm),
-          Paragraph("Status: Phase 2 complete.", S["subtitle"]),
+          Spacer(1, 58 * mm),
+          Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
+          Paragraph("Status: Phase 3 complete.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -480,7 +481,7 @@ bullets([
     "The total is then an exact sum, so the numbers on the PDF always add up.",
     "If an item has its own tax, that item is taxed with its own rate; the "
     "invoice discount is shared across items in proportion to their value "
-    "(any leftover cent goes to the last item, so nothing is lost).",
+    "(leftover cents go to the lines with the largest remainder - see Chapter 3).",
 ])
 p("The result is an immutable <font face='Courier'>InvoiceTotals</font> "
   "object: <font face='Courier'>subtotal, discountAmount, taxableAmount, "
@@ -810,6 +811,170 @@ p("<b>Try it yourself:</b> change a value in "
 p("<b>Next (Phase 3):</b> InvoiceCalculator + InvoiceTotals + InvoiceValidator, the exact "
   "minor-unit money math, and many calculation tests (1 x $100, 10% "
   "discount, 13% tax, decimals, rounding, large values).")
+
+
+# ==========================================================================
+# CHAPTER 3 - Phase 3: calculation engine
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 3 - Phase 3: The calculation engine")
+p("This phase is all about money math. No PDF yet - if the numbers are "
+  "wrong, a beautiful PDF is worthless. We added 4 files and 65 new tests "
+  "(107 in total).")
+code("""
+lib/src/calculation/
+  money.dart             (internal) exact decimals, rounding, allocation
+  totals_engine.dart     (internal) the math, in BigInt minor units
+  invoice_totals.dart    (public)   InvoiceTotals, InvoiceLineTotals,
+                                    InvoiceTaxLine
+  invoice_calculator.dart(public)   InvoiceCalculator.calculate()
+lib/src/validation/
+  invoice_validator.dart (public)   InvoiceValidator.validate()
+""")
+
+h2("How to use it")
+code("""
+final totals = InvoiceCalculator.calculate(invoice);
+totals.subtotal;           // 700.0
+totals.discountAmount;     // 70.0
+totals.taxableAmount;      // 630.0
+totals.taxLines;           // [InvoiceTaxLine(VAT: 81.9)]
+totals.total;              // 711.9
+totals.totalInMinorUnits;  // 71190  (cents - for Stripe etc.)
+totals.lines[0].lineTotal; // 500.0
+""")
+
+h2("Idea 1 - Never do money math with double")
+p("A <font face='Courier'>double</font> stores numbers in binary. Most "
+  "decimals (0.1, 1.005...) cannot be stored exactly, so tiny errors "
+  "appear and then rounding goes the wrong way:")
+code("""
+1.005 * 100           // 100.49999999999999  -> rounds to 1.00  (wrong!)
+our engine: 1.005     // exactly 1005 / 1000 -> rounds to 1.01  (right)
+""")
+p("<b>How we fixed it:</b> Dart prints every double in its shortest exact "
+  "form (<font face='Courier'>1.005.toString() == '1.005'</font>). We read "
+  "that text and turn it into two whole numbers: digits = 1005, scale = 3 "
+  "(meaning 1005 / 10^3). This is <font face='Courier'>ExactDecimal</font> "
+  "in money.dart. All math then uses <font face='Courier'>BigInt</font> "
+  "(whole numbers of any size).")
+simple("We stop writing '1.005 dollars' and write '1005 thousandths of a "
+       "dollar'. Whole numbers are always exact.")
+
+h2("Idea 2 - Why BigInt and not int?")
+p("On Flutter Web, Dart's <font face='Courier'>int</font> is really a "
+  "JavaScript number. It is only exact up to 2^53 (about 9 quadrillion). "
+  "<font face='Courier'>quantity x price x 10^digits</font> can pass that "
+  "for big invoices. BigInt has no limit and gives the same answer on "
+  "Android, iOS, desktop and Web.")
+
+h2("Idea 3 - Rounding: half away from zero")
+table(["Exact value", "Rounded (2 decimals)", "Why"], [
+    ["0.124", "0.12", "below half - down"],
+    ["0.125", "0.13", "exactly half - away from zero (up)"],
+    ["2.5 (JPY, 0 decimals)", "3", "not 2 - we do NOT use banker's rounding"],
+    ["-0.125", "-0.13", "away from zero, symmetric"],
+], [50, 50, 70])
+p("The function is <font face='Courier'>roundDiv(numerator, denominator)</font>: "
+  "divide, look at the remainder, and if remainder x 2 &gt;= denominator, "
+  "move one step away from zero.")
+
+h2("Idea 4 - Round each value once, then only add")
+code("""
+line   = round(quantity x unitPrice)  - round(item discount)
+subtotal = sum(lines)                        <- exact, no rounding
+discount = round(subtotal x %)  or fixed
+taxable  = subtotal - discount               <- exact
+tax      = round(taxable_for_that_rate x %)  <- once per tax rate
+total    = taxable + sum(taxes)              <- exact
+""")
+p("Because every 'sum' step is exact, the PDF can never show numbers that "
+  "do not add up. We have a test that builds <b>300 random invoices</b> and "
+  "checks this for every single one.")
+callout("Why round tax per rate, not per line?",
+        "3 lines of 0.10 at 5%: per line 0.005 rounds to 0.01, times 3 = "
+        "0.03. On the sum, 0.30 x 5% = 0.015 rounds to 0.02. Per-line "
+        "rounding adds up rounding errors, so most accounting systems round "
+        "tax on the total per rate. We do the same (there is a test for it).")
+
+h2("Idea 5 - Sharing the discount fairly (largest remainder)")
+p("If items have <b>different</b> tax rates, we must know how much of the "
+  "invoice discount belongs to each line. Example: discount of $1.00 over "
+  "three $1 items. 100 cents / 3 = 33.33 each.")
+table(["Step", "Item A", "Item B", "Item C", "Sum"], [
+    ["Exact share", "33.33", "33.33", "33.33", "99.99?"],
+    ["Round down", "33", "33", "33", "99"],
+    ["1 cent left - goes to largest remainder (tie: first)", "34", "33", "33", "100 OK"],
+], [70, 25, 25, 25, 25])
+p("This is <font face='Courier'>allocateProportionally()</font>. The shares "
+  "always add up to exactly the discount. (In Chapter 1 I wrote 'leftover "
+  "to last item'; largest remainder is fairer, so I changed it.)")
+
+h2("Mixed taxes example (tested)")
+table(["Item", "Line", "Share of 10% disc.", "Taxable", "Tax"], [
+    ["A (uses invoice VAT 13%)", "100", "10", "90", "VAT 11.70"],
+    ["B (own GST 5%)", "100", "10", "90", "GST 4.50"],
+    ["C (taxes: const [] = exempt)", "100", "10", "90", "-"],
+    ["Total", "300", "30", "270", "16.20 -> total 286.20"],
+], [56, 20, 34, 22, 38])
+
+h2("Idea 6 - The validator")
+p("<font face='Courier'>InvoiceValidator.validate(invoice)</font> returns a "
+  "list of problems (empty = valid). "
+  "<font face='Courier'>calculate()</font> calls it first and throws "
+  "<font face='Courier'>InvoiceValidationException</font> if anything is "
+  "wrong. It works in two rounds:")
+bullets([
+    "<b>Round 1 - simple checks:</b> blank invoice number/names, no items, "
+    "due date before issue date, negative or NaN quantity/price, tax not "
+    "0-100%, blank or duplicated tax, percentage discount not 0-100%, "
+    "negative fixed discount.",
+    "<b>Round 2 - needs the math</b> (only if round 1 passed, because the "
+    "math would crash on NaN): fixed discount bigger than its line or the "
+    "subtotal, and totals bigger than 10^15 minor units.",
+])
+callout("A bug the tests caught",
+        "An item with a $25 discount on a $20 line also made the subtotal "
+        "negative, so the validator reported a second, confusing error on "
+        "the invoice discount. Now it reports only the root cause. This is "
+        "exactly why we write tests before building on top.",
+        AMBER_BG, AMBER)
+p("<b>Why 10^15?</b> Totals are returned as <font face='Courier'>double</font>. "
+  "A double can hold any 15-digit number exactly. 10^15 cents is 10 "
+  "trillion dollars - more than enough, and we can promise every value "
+  "is exact.")
+
+h2("Idea 7 - Public types you cannot construct")
+p("<font face='Courier'>InvoiceTotals</font> has its constructor marked "
+  "<font face='Courier'>@internal</font>. Only our calculator should make "
+  "one. That lets us add a new field in v1.1 without breaking anyone, "
+  "because nobody else calls the constructor. Same idea for "
+  "<font face='Courier'>abstract final class InvoiceCalculator</font>: it "
+  "only has static methods, cannot be created, and cannot be extended.")
+
+h2("Tests added in this phase")
+table(["File", "What it checks"], [
+    ["test/calculation/money_test.dart", "exact parsing (1.005, 1e-7, 1e21), "
+     "half-away rounding, percent, conversion back, allocation"],
+    ["test/calculation/invoice_calculator_test.dart", "1x$100, 2x$100, "
+     "multiple items, zero qty, decimal qty/price, 0.1+0.2, 100 x 0.01, "
+     "10% / fixed / zero / 100% discount, item discounts, 13% tax, no tax, "
+     "zero tax, CGST+SGST, mixed item taxes, per-rate rounding, 1.005, "
+     "0.125, JPY, 3-decimal currency, large values, 300 random invoices"],
+    ["test/validation/invoice_validator_test.dart", "every rule above, plus "
+     "'reports every problem at once'"],
+], [62, 108])
+code("""
+flutter analyze   ->  No issues found!
+flutter test      ->  +107: All tests passed!
+
+# Same tests on Web, using Brave (Chromium) instead of Chrome:
+export CHROME_EXECUTABLE="/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+flutter test --platform chrome   ->  +107: All tests passed!
+""")
+p("<b>Next (Phase 4):</b> add the <font face='Courier'>pdf</font> package, "
+  "build <font face='Courier'>InvoiceGenerator.generate()</font> with the "
+  "Classic template, fonts and logo loading; test 1-150 item invoices.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

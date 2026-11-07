@@ -5,6 +5,8 @@
 library;
 
 // Exports are sorted alphabetically (lint: directives_ordering).
+export 'src/calculation/invoice_calculator.dart';
+export 'src/calculation/invoice_totals.dart';
 export 'src/exceptions/invoice_exceptions.dart';
 export 'src/models/business.dart';
 export 'src/models/currency.dart';
@@ -17,3 +19,4 @@ export 'src/models/invoice_item.dart';
 export 'src/models/invoice_logo.dart' show InvoiceLogo;
 export 'src/models/payment_information.dart';
 export 'src/models/tax.dart';
+export 'src/validation/invoice_validator.dart';
