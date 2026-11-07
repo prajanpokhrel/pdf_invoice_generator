@@ -8,19 +8,34 @@ version: 0.1.0-dev.1
 publish_to: 'none'
 
 environment:
-  # Lower bounds are revisited in Phase 4 once `pdf`/`printing` are added,
-  # because their own minimum SDK decides ours.
   sdk: ^3.6.0
   flutter: '>=3.27.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  # Downloads InvoiceLogo.network images. Already used by `printing`,
+  # which is added in Phase 6, so it adds nothing extra.
+  http: '>=0.13.0 <2.0.0'
+  # Decodes, validates and downscales logos. Already a dependency of
+  # `pdf`, so it adds nothing new. 4.3.0 is the oldest release whose own
+  # dependencies (archive >=3.6.1) still compile on Dart 3.5+.
+  image: '>=4.3.0 <5.0.0'
+  # Date and number formatting. Wide range because flutter_localizations
+  # pins one exact intl version; a narrow range would cause conflicts.
+  intl: '>=0.19.0 <0.21.0'
   # @immutable / @internal annotations. Already pinned by the Flutter SDK,
   # so this adds nothing new to an app's dependency tree.
   meta: ^1.15.0
+  # Builds the PDF document (pages, tables, text, images, fonts).
+  # ^3.12.0 keeps Dart 2.19+ support; newer SDKs still resolve 3.13+.
+  pdf: ^3.12.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  assets:
+    - assets/fonts/

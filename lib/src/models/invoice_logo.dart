@@ -8,8 +8,9 @@ import 'package:meta/meta.dart';
 /// are the most reliable. [InvoiceLogo.network] downloads the image during
 /// PDF generation, so it needs an internet connection at that moment.
 ///
-/// Supported formats are PNG and JPEG. Problems loading or decoding the
-/// image are reported as an `InvoiceImageException`.
+/// Supported formats: PNG, JPEG, GIF, BMP, WebP and TIFF. Images larger
+/// than 1024 pixels are scaled down automatically. Problems loading or
+/// decoding the image are reported as an `InvoiceImageException`.
 @immutable
 sealed class InvoiceLogo {
   const InvoiceLogo();
