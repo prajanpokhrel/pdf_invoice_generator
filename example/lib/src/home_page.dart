@@ -56,7 +56,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _run(
-      String done, Future<String?> Function(InvoicePdf) action) async {
+    String done,
+    Future<String?> Function(InvoicePdf) action,
+  ) async {
     final pdf = _pdf;
     if (pdf == null || _busy) return;
     // Read everything that needs `context` before the first `await`.
@@ -68,10 +70,7 @@ class _HomePageState extends State<HomePage> {
       messenger.showSnackBar(SnackBar(content: Text(message ?? done)));
     } on InvoiceException catch (e) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: errorColor,
-        ),
+        SnackBar(content: Text(e.message), backgroundColor: errorColor),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -79,24 +78,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _share(Rect? origin) => _run('Shared', (pdf) async {
-        final ok = await pdf.share(
-          subject: 'Invoice ${_previewInvoice.invoiceNumber}',
-          sharePositionOrigin: origin,
-        );
-        return ok ? null : 'Sharing cancelled';
-      });
+    final ok = await pdf.share(
+      subject: 'Invoice ${_previewInvoice.invoiceNumber}',
+      sharePositionOrigin: origin,
+    );
+    return ok ? null : 'Sharing cancelled';
+  });
 
   void _print() => _run('Sent to printer', (pdf) async {
-        final ok = await pdf.print();
-        return ok ? null : 'Printing cancelled';
-      });
+    final ok = await pdf.print();
+    return ok ? null : 'Printing cancelled';
+  });
 
   void _save() => _run('Saved', (pdf) async {
-        final result = await pdf.save();
-        return result.isDownload
-            ? 'Downloaded ${result.fileName}'
-            : 'Saved to ${result.path}';
-      });
+    final result = await pdf.save();
+    return result.isDownload
+        ? 'Downloaded ${result.fileName}'
+        : 'Saved to ${result.path}';
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -149,14 +148,18 @@ class _HomePageState extends State<HomePage> {
                 tabs: [
                   Tab(icon: Icon(Icons.edit_outlined), text: 'Edit'),
                   Tab(
-                      icon: Icon(Icons.picture_as_pdf_outlined),
-                      text: 'Preview'),
+                    icon: Icon(Icons.picture_as_pdf_outlined),
+                    text: 'Preview',
+                  ),
                 ],
               ),
             ),
             body: TabBarView(
               // Keep the editor's text fields alive when switching tabs.
-              children: [_KeepAlive(child: editor), preview],
+              children: [
+                _KeepAlive(child: editor),
+                preview,
+              ],
             ),
           ),
         );

@@ -11,7 +11,7 @@ final pdf = await InvoiceGenerator.generate(invoice);
 - ✅ **Correct totals:** exact decimal math, no `0.1 + 0.2` surprises
 - ✅ **Multi-page:** long item lists continue with repeated table headers
 - ✅ **3 templates:** Classic, Modern, Minimal, all themeable
-- ✅ **Offline:** bundled font with `$ € £ ₹ ¥`; no network needed
+- ✅ **Offline PDF generation:** bundled font with `$ € £ ₹ ¥`
 - ✅ **Preview, save, share, print:** Android, iOS, macOS, Windows, Linux, Web
 - ✅ **No backend, no Firebase, no global state**
 
@@ -403,7 +403,19 @@ Nothing to configure. When the items don't fit on one page:
 - every page shows "Page X of Y" in the footer;
 - the thank-you line is never left alone on an empty page.
 
-Tested with 1, 10, 50, 150 and 1000 items.
+Long text is handled too:
+
+- **Notes, terms and payment instructions** of any length flow onto the
+  next pages.
+- **Item descriptions** of any length continue in extra table rows.
+- Text that must stay in one table row is limited: item `name` (300
+  characters), `unit` (30) and `sku` (100), and at most 10 taxes per item.
+  The validator explains when a limit is exceeded.
+- Anything else taller than a whole page (for example a 90-line address)
+  fails at once with a clear `InvoiceGenerationException` instead of hanging.
+
+Tested with 1, 10, 50, 150 and 1000 items, 20,000-character terms and
+12,000-character descriptions.
 
 ---
 
@@ -475,6 +487,11 @@ share popover points at the button.
 - **From the plugins' source code:** the native dialogs and share sheets.
   They have not yet been checked by hand on every platform.
 
+**Web note:** PDF *generation* is offline everywhere, but on the web
+`InvoicePreview` and `print` use pdf.js, which the `printing` plugin loads
+from `unpkg.com` by default. To work offline, host pdf.js yourself (see the
+[printing package setup](https://pub.dev/packages/printing)).
+
 To let users choose where a file goes on Android or iOS, use `share`: the
 share sheet includes "Save to Files" / "Save to Drive".
 
@@ -509,7 +526,9 @@ Validate early (for example in a form) with
 ## FAQ
 
 **Does it need internet, Firebase or a server?**
-No. Everything runs on the device. Only `InvoiceLogo.network` downloads.
+No. Generation runs on the device. Only `InvoiceLogo.network` downloads, and
+on the web the preview/print viewer (pdf.js) is loaded from a CDN unless you
+host it yourself.
 
 **Can I use the totals without making a PDF?**
 Yes: `InvoiceCalculator.calculate(invoice)`.
@@ -561,6 +580,15 @@ List the file under `flutter: assets:` in your app's `pubspec.yaml`.
 The image server must allow cross-origin requests (CORS). Use
 `InvoiceLogo.memory` or `.asset` instead.
 
+**The preview is slow while typing when I use a network logo**
+`InvoiceLogo.network` is downloaded each time the PDF is generated, and the
+preview regenerates after every change. Download the logo once and pass
+`InvoiceLogo.memory(bytes)`.
+
+**Preview or print is blank on the web without internet**
+pdf.js is loaded from a CDN by default; see the web note under
+[Platform support](#platform-support).
+
 **I can't find the saved file on Android/iOS**
 The app documents folder is private. Use `share` to let the user save it
 anywhere.
@@ -576,7 +604,8 @@ bug). Run `flutter pub upgrade pdf image`.
 - Custom templates and custom sections
 - Tax-inclusive prices
 - Recurring invoices and credit notes
-- Generation in a background isolate for very large invoices
+- Generation in a background isolate (very large invoices currently run on
+  the UI thread, which can briefly pause animations)
 - More templates
 
 Ideas and bug reports are welcome in the issue tracker.

@@ -44,7 +44,7 @@ final class ItemsTableStyle {
   /// Full grid around every cell.
   final bool showGrid;
 
-  /// Thin line under each body row (ignored when [showGrid] is on).
+  /// Thin line under each item (always drawn when [showGrid] is on).
   final bool showRowDividers;
 
   /// Vertical padding inside each cell.
@@ -87,14 +87,15 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle defaults) {
   final columns = <_Column>[
     _Column(l.item, 4, pw.Alignment.centerLeft, (line) {
       final item = line.item;
+      final chunks = descriptionChunks(item.description);
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           text(item.name, style: ctx.bold),
-          if (item.description != null)
+          if (chunks.isNotEmpty)
             pw.Padding(
               padding: const pw.EdgeInsets.only(top: 2),
-              child: text(item.description!, style: ctx.muted),
+              child: text(chunks.first, style: ctx.muted),
             ),
           if (item.sku != null) text('${l.sku}: ${item.sku}', style: ctx.muted),
         ],
@@ -140,8 +141,19 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle defaults) {
   );
   final divider = pw.BorderSide(color: style.borderColor, width: 0.5);
 
-  pw.Widget cell(pw.Widget child, pw.Alignment align) => pw.Container(
-        padding: padding,
+  /// A cell. [joinAbove]/[joinBelow] remove the padding between the rows of
+  /// one item whose description continues, so it reads as one block.
+  pw.Widget cell(
+    pw.Widget child,
+    pw.Alignment align, {
+    bool joinAbove = false,
+    bool joinBelow = false,
+  }) =>
+      pw.Container(
+        padding: padding.copyWith(
+          top: joinAbove ? 0 : padding.top,
+          bottom: joinBelow ? 0 : padding.bottom,
+        ),
         alignment: align,
         child: child,
       );
@@ -168,26 +180,58 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle defaults) {
     ],
   );
 
-  final rows = <pw.TableRow>[
-    for (var i = 0; i < ctx.totals.lines.length; i++)
-      pw.TableRow(
-        verticalAlignment: pw.TableCellVerticalAlignment.top,
-        decoration: pw.BoxDecoration(
+  final rows = <pw.TableRow>[];
+  for (var i = 0; i < ctx.totals.lines.length; i++) {
+    final line = ctx.totals.lines[i];
+    final extra = descriptionChunks(line.item.description).skip(1).toList();
+    // Every row of one item shares its stripe colour; the divider goes
+    // under the item's last row only.
+    pw.BoxDecoration decoration({required bool last}) => pw.BoxDecoration(
           color:
               style.stripeColor != null && i.isOdd ? style.stripeColor : null,
-          border: style.showRowDividers && !style.showGrid
+          // Grid mode draws its horizontal lines here too (not as
+          // horizontalInside), so the rows of one item are not separated.
+          border: last && (style.showRowDividers || style.showGrid)
               ? pw.Border(bottom: divider)
               : null,
-        ),
+        );
+    rows.add(
+      pw.TableRow(
+        verticalAlignment: pw.TableCellVerticalAlignment.top,
+        decoration: decoration(last: extra.isEmpty),
         children: [
-          for (final c in columns) cell(c.cell(ctx.totals.lines[i]), c.align),
+          for (final c in columns)
+            cell(c.cell(line), c.align, joinBelow: extra.isNotEmpty),
         ],
       ),
-  ];
+    );
+    for (var k = 0; k < extra.length; k++) {
+      rows.add(
+        pw.TableRow(
+          decoration: decoration(last: k == extra.length - 1),
+          children: [
+            cell(
+              text(extra[k], style: ctx.muted),
+              pw.Alignment.centerLeft,
+              joinAbove: true,
+              joinBelow: k < extra.length - 1,
+            ),
+            for (var c = 1; c < columns.length; c++) pw.SizedBox(),
+          ],
+        ),
+      );
+    }
+  }
 
   return pw.Table(
     border: style.showGrid
-        ? pw.TableBorder.all(color: style.borderColor, width: 0.5)
+        ? pw.TableBorder(
+            left: divider,
+            top: divider,
+            right: divider,
+            bottom: divider,
+            verticalInside: divider,
+          )
         : null,
     columnWidths: {
       for (var i = 0; i < columns.length; i++)
@@ -195,4 +239,70 @@ pw.Widget itemsTable(RenderContext ctx, ItemsTableStyle defaults) {
     },
     children: [header, ...rows],
   );
+}
+
+/// Longest piece of a description placed in one table row.
+const int maxDescriptionChunk = 350;
+
+/// Most lines (newlines) of a description placed in one table row.
+const int maxDescriptionChunkLines = 8;
+
+/// Splits [description] into pieces that each fit comfortably in one table
+/// row.
+///
+/// A table row can never be split across pages. If one row were taller than
+/// a page, the pdf library would keep adding pages forever in release builds
+/// (only a debug assert stops it). Long descriptions therefore continue in
+/// extra rows, so the table can break between them. Pieces are split at line
+/// breaks or spaces, and only inside a word when a word itself is too long.
+List<String> descriptionChunks(String? description) {
+  if (description == null || description.trim().isEmpty) return const [];
+  final chunks = <String>[];
+  final current = StringBuffer();
+  var lines = 0;
+
+  void flush() {
+    final text = current.toString().trimRight();
+    if (text.isNotEmpty) chunks.add(text);
+    current.clear();
+    lines = 0;
+  }
+
+  void addWord(String word) {
+    var rest = word;
+    while (rest.length > maxDescriptionChunk) {
+      flush();
+      chunks.add(rest.substring(0, maxDescriptionChunk));
+      rest = rest.substring(maxDescriptionChunk);
+    }
+    final separator =
+        current.isEmpty || current.toString().endsWith('\n') ? '' : ' ';
+    if (current.length + separator.length + rest.length > maxDescriptionChunk) {
+      flush();
+      current.write(rest);
+    } else {
+      current
+        ..write(separator)
+        ..write(rest);
+    }
+  }
+
+  final paragraphs = description.trimRight().split('\n');
+  for (var p = 0; p < paragraphs.length; p++) {
+    if (p > 0) {
+      if (lines + 1 >= maxDescriptionChunkLines ||
+          current.length >= maxDescriptionChunk) {
+        flush();
+      } else {
+        current.write('\n');
+        lines++;
+      }
+    }
+    for (final word in paragraphs[p].split(' ')) {
+      if (word.isEmpty) continue;
+      addWord(word);
+    }
+  }
+  flush();
+  return chunks;
 }

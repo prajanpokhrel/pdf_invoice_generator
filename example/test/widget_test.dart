@@ -43,8 +43,9 @@ void main() {
     });
   });
 
-  testWidgets('wide layout shows the editor next to the preview',
-      (tester) async {
+  testWidgets('wide layout shows the editor next to the preview', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -70,8 +71,9 @@ void main() {
     expect(find.text('Preview'), findsOneWidget);
   });
 
-  testWidgets('removing every item shows the validation banner',
-      (tester) async {
+  testWidgets('removing every item shows the validation banner', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1400, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -82,8 +84,10 @@ void main() {
       await tester.pump();
     }
     expect(find.text('items: must contain at least one item'), findsOneWidget);
-    expect(find.text('No items yet. An invoice needs at least one.'),
-        findsOneWidget);
+    expect(
+      find.text('No items yet. An invoice needs at least one.'),
+      findsOneWidget,
+    );
     // Let the debounce timer fire so no timers are pending at the end.
     await tester.pump(const Duration(milliseconds: 400));
   });

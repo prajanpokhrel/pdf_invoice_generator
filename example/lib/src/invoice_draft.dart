@@ -56,7 +56,11 @@ class InvoiceDraft extends ChangeNotifier {
       unitPrice: 500,
     ),
     DraftItem(
-        name: 'UI/UX Design', quantity: 2, unitPrice: 100, unit: 'screens'),
+      name: 'UI/UX Design',
+      quantity: 2,
+      unitPrice: 100,
+      unit: 'screens',
+    ),
     DraftItem(name: 'Consulting', quantity: 2.5, unitPrice: 80, unit: 'hrs'),
   ];
 
@@ -85,15 +89,13 @@ class InvoiceDraft extends ChangeNotifier {
   }
 
   void addItem() => update(
-        () => items.add(DraftItem(name: 'New item', quantity: 1, unitPrice: 0)),
-      );
+    () => items.add(DraftItem(name: 'New item', quantity: 1, unitPrice: 0)),
+  );
 
   void removeItem(DraftItem item) => update(() => items.remove(item));
 
-  InvoiceTheme get theme => InvoiceTheme(
-        primaryColor: primaryColor,
-        pageFormat: pageFormat,
-      );
+  InvoiceTheme get theme =>
+      InvoiceTheme(primaryColor: primaryColor, pageFormat: pageFormat);
 
   String? _blankToNull(String value) =>
       value.trim().isEmpty ? null : value.trim();
@@ -132,8 +134,9 @@ class InvoiceDraft extends ChangeNotifier {
       taxes: [
         if (taxPercentage > 0)
           Tax(
-              name: taxName.trim().isEmpty ? 'Tax' : taxName,
-              percentage: taxPercentage),
+            name: taxName.trim().isEmpty ? 'Tax' : taxName,
+            percentage: taxPercentage,
+          ),
       ],
       discount: switch (discountMode) {
         DiscountMode.none => null,

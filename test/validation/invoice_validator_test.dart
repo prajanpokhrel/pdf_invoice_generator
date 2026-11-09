@@ -57,6 +57,14 @@ void main() {
       expect(fields(withItems([item(name: '')])), ['items[0].name']);
     });
 
+    test('due the same day is valid, even with an earlier time', () {
+      final invoice = sampleInvoice().copyWith(
+        issueDate: DateTime(2026, 11, 7, 15, 30), // like DateTime.now()
+        dueDate: DateTime(2026, 11, 7), // midnight, same day
+      );
+      expect(fields(invoice), isEmpty);
+    });
+
     test('due date before issue date', () {
       final invoice = sampleInvoice().copyWith(dueDate: DateTime(2020));
       expect(fields(invoice), ['dueDate']);
@@ -94,6 +102,73 @@ void main() {
         fields(withItems([item(quantity: 1e9, unitPrice: 1e9)])),
         ['total'],
       );
+    });
+  });
+
+  test('currency needs a code', () {
+    final invoice = sampleInvoice(
+      currency: const Currency(code: ' ', symbol: '?'),
+    );
+    expect(fields(invoice), ['currency.code']);
+  });
+
+  group('length limits (each item row must fit on one page)', () {
+    test('item name, unit and sku', () {
+      final issues = InvoiceValidator.validate(
+        withItems([
+          InvoiceItem(
+            name: 'n' * 301,
+            unit: 'u' * 31,
+            sku: 's' * 101,
+            quantity: 1,
+            unitPrice: 1,
+          ),
+        ]),
+      );
+      expect(issues.map((i) => i.field), [
+        'items[0].name',
+        'items[0].unit',
+        'items[0].sku',
+      ]);
+      expect(issues.first.message, contains('put long text in description'));
+    });
+
+    test('limits are inclusive', () {
+      expect(
+        fields(
+          withItems([
+            InvoiceItem(
+              name: 'n' * 300,
+              unit: 'u' * 30,
+              sku: 's' * 100,
+              quantity: 1,
+              unitPrice: 1,
+            ),
+          ]),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('long descriptions are allowed', () {
+      final invoice = withItems([
+        InvoiceItem(
+          name: 'x',
+          description: 'd' * 20000,
+          quantity: 1,
+          unitPrice: 1,
+        ),
+      ]);
+      expect(fields(invoice), isEmpty);
+    });
+
+    test('at most 10 taxes per item', () {
+      final invoice = withItems([
+        item(
+          taxes: [for (var i = 0; i < 11; i++) Tax(name: 'T$i', percentage: 1)],
+        ),
+      ]);
+      expect(fields(invoice), ['items[0].taxes']);
     });
   });
 

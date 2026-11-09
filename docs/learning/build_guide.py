@@ -186,7 +186,7 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 22 * mm),
+          Spacer(1, 16 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
@@ -195,7 +195,8 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 7: Phase 7 - Save, Share, Print", S["subtitle"]),
           Paragraph("Chapter 8: Phase 8 - Example App", S["subtitle"]),
           Paragraph("Chapter 9: Phase 9 - Documentation", S["subtitle"]),
-          Paragraph("Status: Phase 9 complete.", S["subtitle"]),
+          Paragraph("Chapter 10: Final audit before release", S["subtitle"]),
+          Paragraph("Status: audit complete, ready for Phase 10.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1754,6 +1755,90 @@ flutter analyze -> No issues | flutter test -> +224 | dart doc -> 0 warnings
 p("<b>Next (Phase 10):</b> pubspec metadata (repository, topics, "
   "screenshots), .pubignore, version 0.1.0, and "
   "<font face='Courier'>dart pub publish --dry-run</font> until it is clean.")
+
+
+# ==========================================================================
+# CHAPTER 10 - Final audit
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 10 - The final audit")
+p("Before publishing, we stopped adding features and tried to <b>break</b> "
+  "the package: unusual inputs, a second read of every file, and every "
+  "check from earlier phases again. All 224 tests were passing - and we "
+  "still found a serious bug.")
+
+h2("1. Stress testing: the freeze bug")
+p("A small script generated invoices with extreme content in all three "
+  "templates:")
+table(["Input", "Before", "After"], [
+    ["Terms: 20,000 characters", "FAILED", "OK - flows over 4 pages"],
+    ["Notes: 8,000 characters", "FAILED", "OK"],
+    ["Item description: 4,000 / 12,000 chars", "FAILED", "OK - 3 / 6 pages"],
+    ["Address with 90 lines", "won't-fit / hang risk", "clear error, instantly"],
+    ["100 taxes", "won't-fit error", "clear error"],
+    ["Long words, emoji, empty strings, tabs", "OK", "OK"],
+], [70, 46, 54])
+callout("Why 'failed' really meant 'freezes the app'",
+        "The pdf library keeps adding pages when a block that cannot be "
+        "split is taller than a page. The only stop is "
+        "<font face='Courier'>assert(sameCount++ &lt;= maxPages)</font> - and "
+        "asserts are <b>removed in release builds</b>. A customer pasting long "
+        "terms would have frozen the app forever. Debug-mode tests could "
+        "never show this; reading the library's code did.", AMBER_BG, AMBER)
+p("<b>Fixes:</b>")
+bullets([
+    "Notes, terms and instructions are now top-level text with "
+    "<font face='Courier'>TextOverflow.span</font>, which always flows onto "
+    "the next page.",
+    "Long descriptions are cut into ~350-character pieces placed in "
+    "<b>continuation rows</b>; padding and grid lines are adjusted so they "
+    "still look like one item.",
+    "Fields that must stay in one row (item name, unit, SKU, item taxes) "
+    "have validator limits with helpful messages.",
+    "Fixed blocks use <font face='Courier'>pw.Inseparable</font>: if they are "
+    "too tall they fail <i>immediately</i> with 'taller than one page', "
+    "instead of looping.",
+])
+callout("A fix that would have broken old users",
+        "The first version of the friendly error caught "
+        "<font face='Courier'>PdfException</font>. Checking pdf 3.12 showed "
+        "that class does not exist there (added in 3.13), and our pubspec "
+        "allows 3.12. We match the error message instead, which both "
+        "versions share.")
+
+h2("2. Reading the code again")
+table(["Found", "Fix"], [
+    ["Due date 'today' rejected when issueDate = DateTime.now() (midnight "
+     "is before now)", "compare calendar days"],
+    ["Tax 12.345% printed as 12.35% while the math used 12.345%",
+     "show up to 4 decimals"],
+    ["Currency decimals only checked by assert (gone in release)",
+     "validator checks it"],
+    ["baseFontSize 0 or a huge margin gave a cryptic library error",
+     "'Invalid InvoiceTheme: ...'"],
+    ["README said 'offline', but the web preview loads pdf.js from unpkg.com",
+     "documented, with the self-hosting option"],
+    ["Network logos are downloaded again on every preview refresh",
+     "documented; use InvoiceLogo.memory"],
+    ["Example app used a Flutter 3.35 API but claimed older support",
+     "example requires 3.35 (package still 3.27+)"],
+], [104, 66])
+
+h2("3. Every check, one last time")
+code("""
+flutter analyze (package + example)        No issues
+flutter test                               +248 passed
+flutter test --platform chrome (Brave)     +129 passed
+example tests                              +7 passed
+integration test on macOS (real plugins)   +2 passed
+oldest dependency versions                 +248 passed
+dart doc                                   0 warnings, 0 errors
+dart format                                clean
+dart pub publish --dry-run                 only the known Phase 10 items
+""")
+simple("Tests prove what you thought of. An audit looks for what you did "
+       "not think of: extreme inputs, release-mode behaviour, old versions, "
+       "and every sentence in the README.")
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

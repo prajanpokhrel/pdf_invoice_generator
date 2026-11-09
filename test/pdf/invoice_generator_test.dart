@@ -330,6 +330,25 @@ void main() {
       );
     });
 
+    test('impossible theme values give a clear error', () async {
+      for (final theme in const [
+        InvoiceTheme(baseFontSize: 0),
+        InvoiceTheme(margin: 400), // wider than half an A4 page
+        InvoiceTheme(sectionSpacing: -1),
+      ]) {
+        await expectLater(
+          InvoiceGenerator.generate(sampleInvoice(), theme: theme),
+          throwsA(
+            isA<InvoiceGenerationException>().having(
+              (e) => e.message,
+              'message',
+              startsWith('Invalid InvoiceTheme'),
+            ),
+          ),
+        );
+      }
+    });
+
     test('custom date format', () async {
       final text = PdfInspector(
         (await InvoiceGenerator.generate(

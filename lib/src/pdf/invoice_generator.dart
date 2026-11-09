@@ -57,6 +57,7 @@ abstract final class InvoiceGenerator {
   }) async {
     // 1. Validate + calculate (throws InvoiceValidationException).
     final totals = InvoiceCalculator.calculate(invoice);
+    _checkTheme(theme);
 
     try {
       // 2. Resources (async: assets, network, fonts).
@@ -107,6 +108,18 @@ abstract final class InvoiceGenerator {
     } on InvoiceException {
       rethrow;
     } on Object catch (e, stackTrace) {
+      // Matched by message, not by type: PdfException only exists in
+      // pdf 3.13+, and this package also supports pdf 3.12.
+      final text = e.toString();
+      if (text.contains("won't fit") || text.contains('more than $_maxPages')) {
+        throw InvoiceGenerationException(
+          'Part of invoice "${invoice.invoiceNumber}" is taller than one page '
+          'and cannot be split - for example a very long address, a very '
+          'tall logo or a large number of taxes. Shorten that content.',
+          cause: e,
+          stackTrace: stackTrace,
+        );
+      }
       throw InvoiceGenerationException(
         'Could not generate the PDF for invoice "${invoice.invoiceNumber}": '
         '$e',
@@ -180,6 +193,29 @@ abstract final class InvoiceGenerator {
       labels: labels,
     );
     return pdf.save(directory: directory, fileName: fileName);
+  }
+
+  /// Rejects theme values that cannot produce a readable page.
+  static void _checkTheme(InvoiceTheme theme) {
+    final format = theme.pageFormat;
+    final problems = [
+      if (!(theme.baseFontSize > 0 && theme.baseFontSize <= 72))
+        'baseFontSize must be between 0 and 72 (got ${theme.baseFontSize})',
+      if (!(theme.margin >= 0) ||
+          theme.margin * 2 >= format.width ||
+          theme.margin * 2 >= format.height)
+        'margin ${theme.margin} does not leave room on a '
+            '${format.width.round()} x ${format.height.round()} pt page',
+      if (!(theme.sectionSpacing >= 0))
+        'sectionSpacing must not be negative (got ${theme.sectionSpacing})',
+      if (!(theme.borderRadius >= 0))
+        'borderRadius must not be negative (got ${theme.borderRadius})',
+    ];
+    if (problems.isNotEmpty) {
+      throw InvoiceGenerationException(
+        'Invalid InvoiceTheme: ${problems.join('; ')}.',
+      );
+    }
   }
 
   /// `INV/2026 #1` -> `INV_2026__1.pdf`.

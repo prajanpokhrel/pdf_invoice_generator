@@ -22,89 +22,141 @@ List<(String, String)> paymentRows(RenderContext ctx) {
   ];
 }
 
-/// Payment details (with the QR code beside them), notes, terms and the
-/// thank-you line, as separate widgets so the page layout can break between
-/// them.
-///
-/// The thank-you line is attached to the last section, so it is never left
-/// alone at the top of an otherwise empty page.
-List<pw.Widget> closingSections(RenderContext ctx) {
-  final sections = _closingSections(ctx);
-  final thankYou = ctx.labels.thankYou;
-  if (thankYou == null) return sections;
-  final line = pw.Padding(
-    padding: const pw.EdgeInsets.only(top: 6),
-    child: pw.Text(
-      thankYou,
-      style: ctx.bold.copyWith(color: ctx.theme.primaryColor),
-    ),
-  );
-  if (sections.isEmpty) return [line];
-  return [
-    ...sections.take(sections.length - 1),
-    pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [sections.last, line],
-    ),
-  ];
-}
+/// Paragraphs up to this length are kept together with a heading or the
+/// thank-you line. Longer ones flow freely across pages.
+const _shortParagraph = 600;
 
-List<pw.Widget> _closingSections(RenderContext ctx) {
+/// [text] as top-level widgets that may continue on the next page.
+///
+/// Why this matters: the pdf library keeps adding pages when a block that
+/// cannot be split is taller than a page, and only a debug-mode assert stops
+/// it. In a release build that would freeze the app. Text with
+/// `TextOverflow.span`, placed directly in the page content (not inside a
+/// Column), always makes progress, so very long notes or terms simply
+/// continue on the next page.
+List<pw.Widget> flowingText(String text, pw.TextStyle style) => [
+      for (final paragraph in text.split('\n'))
+        paragraph.trim().isEmpty
+            ? pw.SizedBox(height: style.fontSize ?? 8)
+            : pw.Text(paragraph, style: style, overflow: pw.TextOverflow.span),
+    ];
+
+/// Payment details (with the QR code beside them), payment instructions,
+/// notes, terms and the thank-you line.
+///
+/// * Every text that can be long flows across pages (see [flowingText]).
+/// * A heading stays with its first paragraph when that paragraph is short.
+/// * The thank-you line is attached to the last short block, so it is never
+///   left alone at the top of an otherwise empty page.
+List<pw.Widget> closingSections(RenderContext ctx) {
   final inv = ctx.invoice;
   final l = ctx.labels;
-  final payment = paymentRows(ctx);
-  final instructions = inv.paymentInformation?.instructions;
+  final out = <pw.Widget>[];
+  // Index in [out] of the last block that is small enough to be kept
+  // together with the thank-you line.
+  int? lastShortBlock;
 
-  pw.Widget section(String title, List<pw.Widget> children) => pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 10),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(title.toUpperCase(), style: ctx.caption),
-            pw.SizedBox(height: 4),
-            ...children,
-          ],
+  pw.Widget heading(String title) =>
+      pw.Text(title.toUpperCase(), style: ctx.caption);
+
+  void textSection(String? title, String text, pw.TextStyle style) {
+    final paragraphs = flowingText(text, style);
+    if (paragraphs.isEmpty) return;
+    final first = text.split('\n').first;
+    if (first.length <= _shortParagraph) {
+      out.add(
+        pw.Inseparable(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              if (title != null) ...[heading(title), pw.SizedBox(height: 4)],
+              paragraphs.first,
+            ],
+          ),
         ),
       );
+    } else {
+      if (title != null) out.addAll([heading(title), pw.SizedBox(height: 4)]);
+      out.add(paragraphs.first);
+    }
+    out.addAll(paragraphs.skip(1));
+    final last = text.split('\n').last;
+    lastShortBlock = last.length <= _shortParagraph ? out.length - 1 : null;
+  }
 
-  final paymentSection = payment.isEmpty && instructions == null
-      ? null
-      : section(l.paymentInformation, [
-          for (final (label, value) in payment)
-            pw.RichText(
-              text: pw.TextSpan(
-                children: [
-                  pw.TextSpan(text: '$label: ', style: ctx.muted),
-                  pw.TextSpan(text: value, style: ctx.body),
-                ],
-              ),
-            ),
-          if (instructions != null)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 3),
-              child: pw.Text(instructions, style: ctx.body),
-            ),
-        ]);
+  // 1. Payment details + QR code: a fixed-size block.
+  final payment = paymentRows(ctx);
+  final instructions = inv.paymentInformation?.instructions;
   final qr = qrBlock(ctx);
-
-  return [
-    if (paymentSection != null || qr != null)
+  final hasPayment = payment.isNotEmpty || instructions != null;
+  if (hasPayment || qr != null) {
+    out.add(
       pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Expanded(child: paymentSection ?? pw.SizedBox()),
+          pw.Expanded(
+            child: !hasPayment
+                ? pw.SizedBox()
+                : pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      heading(l.paymentInformation),
+                      pw.SizedBox(height: 4),
+                      for (final (label, value) in payment)
+                        pw.RichText(
+                          text: pw.TextSpan(
+                            children: [
+                              pw.TextSpan(text: '$label: ', style: ctx.muted),
+                              pw.TextSpan(text: value, style: ctx.body),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
           if (qr != null)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(left: 16, bottom: 10),
-              child: qr,
-            ),
+            pw.Padding(padding: const pw.EdgeInsets.only(left: 16), child: qr),
         ],
       ),
-    if (inv.notes != null)
-      section(l.notes, [pw.Text(inv.notes!, style: ctx.body)]),
-    if (inv.terms != null)
-      section(l.terms, [pw.Text(inv.terms!, style: ctx.muted)]),
-  ];
+    );
+    lastShortBlock = out.length - 1;
+    if (instructions != null) {
+      out.add(pw.SizedBox(height: 3));
+      textSection(null, instructions, ctx.body);
+    }
+    out.add(pw.SizedBox(height: 10));
+  }
+
+  // 2. Notes and terms: may be long, so they flow.
+  if (inv.notes != null) {
+    textSection(l.notes, inv.notes!, ctx.body);
+    out.add(pw.SizedBox(height: 10));
+  }
+  if (inv.terms != null) {
+    textSection(l.terms, inv.terms!, ctx.muted);
+    out.add(pw.SizedBox(height: 10));
+  }
+
+  // 3. Thank-you line, glued to the last short block when there is one.
+  final thankYou = l.thankYou;
+  if (thankYou != null) {
+    final line = pw.Text(
+      thankYou,
+      style: ctx.bold.copyWith(color: ctx.theme.primaryColor),
+    );
+    final index = lastShortBlock;
+    if (index == null) {
+      out.add(line);
+    } else {
+      out[index] = pw.Inseparable(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [out[index], pw.SizedBox(height: 16), line],
+        ),
+      );
+    }
+  }
+  return out;
 }
 
 /// Small header on pages 2+, so loose pages can be matched to the invoice.

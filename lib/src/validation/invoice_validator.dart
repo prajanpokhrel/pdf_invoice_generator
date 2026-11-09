@@ -24,7 +24,12 @@ import '../models/tax.dart';
 /// * `invoiceNumber`, `seller.name`, `customer.name` and every item name
 ///   must not be blank.
 /// * There must be at least one item.
-/// * `dueDate`, when set, must not be before `issueDate`.
+/// * The currency needs a code and 0 to 6 decimal digits.
+/// * `dueDate`, when set, must not be on a day before `issueDate`.
+/// * Item `name`, `unit` and `sku` are limited to [maxItemNameLength],
+///   [maxUnitLength] and [maxSkuLength] characters, and an item has at most
+///   [maxTaxesPerItem] taxes, because each item row must fit on one page.
+///   Long text belongs in `description`, which may be any length.
 /// * Quantities and unit prices must be finite and not negative
 ///   (zero is allowed).
 /// * Tax percentages must be between 0 and 100, tax names must not be blank,
@@ -37,6 +42,35 @@ import '../models/tax.dart';
 abstract final class InvoiceValidator {
   /// Largest supported amount, in minor units.
   static final BigInt _maxMinorUnits = BigInt.from(10).pow(15);
+
+  /// Longest allowed item name, in characters.
+  static const int maxItemNameLength = 300;
+
+  /// Longest allowed item unit (for example `hrs`), in characters.
+  static const int maxUnitLength = 30;
+
+  /// Longest allowed item SKU, in characters.
+  static const int maxSkuLength = 100;
+
+  /// Most taxes a single item may have.
+  static const int maxTaxesPerItem = 10;
+
+  static DateTime _day(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  static void _checkLength(
+    String? value,
+    int max,
+    String field,
+    void Function(String, String) add, {
+    String? hint,
+  }) {
+    if (value == null || value.length <= max) return;
+    add(
+      field,
+      'must be at most $max characters (got ${value.length})'
+      '${hint == null ? '' : '; $hint'}',
+    );
+  }
 
   /// Returns every problem found in [invoice]. Empty means valid.
   static List<InvoiceValidationIssue> validate(Invoice invoice) {
@@ -55,9 +89,23 @@ abstract final class InvoiceValidator {
       add('customer.name', 'must not be empty');
     }
 
+    // --- Currency ----------------------------------------------------------
+    // Also checked by an assert in Currency's constructor, but asserts are
+    // removed in release builds.
+    final currency = invoice.currency;
+    if (currency.code.trim().isEmpty) add('currency.code', 'must not be empty');
+    if (currency.decimalDigits < 0 || currency.decimalDigits > 6) {
+      add(
+        'currency.decimalDigits',
+        'must be between 0 and 6 (got ${currency.decimalDigits})',
+      );
+    }
+
     // --- Dates -------------------------------------------------------------
+    // Compare calendar days, not exact times: an invoice issued with
+    // DateTime.now() may be due "today" (midnight is earlier than now).
     final dueDate = invoice.dueDate;
-    if (dueDate != null && dueDate.isBefore(invoice.issueDate)) {
+    if (dueDate != null && _day(dueDate).isBefore(_day(invoice.issueDate))) {
       add('dueDate', 'must not be before issueDate');
     }
 
@@ -67,6 +115,21 @@ abstract final class InvoiceValidator {
       final item = invoice.items[i];
       final path = 'items[$i]';
       if (item.name.trim().isEmpty) add('$path.name', 'must not be empty');
+      // These print inside one table row, which cannot be split across
+      // pages, so their length is limited. Long text belongs in
+      // `description`, which continues over several rows.
+      _checkLength(
+        item.name,
+        maxItemNameLength,
+        '$path.name',
+        add,
+        hint: 'put long text in description',
+      );
+      _checkLength(item.unit, maxUnitLength, '$path.unit', add);
+      _checkLength(item.sku, maxSkuLength, '$path.sku', add);
+      if (item.taxes != null && item.taxes!.length > maxTaxesPerItem) {
+        add('$path.taxes', 'must contain at most $maxTaxesPerItem taxes');
+      }
       _checkNonNegative(item.quantity, '$path.quantity', add);
       _checkNonNegative(item.unitPrice, '$path.unitPrice', add);
       _checkDiscount(item.discount, '$path.discount', add);

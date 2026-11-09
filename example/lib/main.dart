@@ -21,14 +21,14 @@ class InvoiceStudioApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ThemeData theme(Brightness brightness) => ThemeData(
-          colorSchemeSeed: const Color(0xFF2563EB),
-          brightness: brightness,
-          inputDecorationTheme: const InputDecorationTheme(
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          cardTheme: const CardThemeData(elevation: 0),
-        );
+      colorSchemeSeed: const Color(0xFF2563EB),
+      brightness: brightness,
+      inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      cardTheme: const CardThemeData(elevation: 0),
+    );
     return MaterialApp(
       title: 'Invoice Studio',
       debugShowCheckedModeBanner: false,

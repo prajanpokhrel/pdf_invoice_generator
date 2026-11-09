@@ -72,7 +72,7 @@ class SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(title, style: theme.textTheme.titleMedium),
                 ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             const SizedBox(height: 12),
@@ -154,14 +154,14 @@ class NumberInput extends StatelessWidget {
 }
 
 Widget _row(List<Widget> children) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(child: children[i]),
-        ],
-      ],
-    );
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    for (var i = 0; i < children.length; i++) ...[
+      if (i > 0) const SizedBox(width: 12),
+      Expanded(child: children[i]),
+    ],
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Sections
@@ -214,7 +214,9 @@ class _StyleSection extends StatelessWidget {
             items: [
               for (final c in Currency.values)
                 DropdownMenuItem(
-                    value: c, child: Text('${c.code}  ${c.symbol}')),
+                  value: c,
+                  child: Text('${c.code}  ${c.symbol}'),
+                ),
             ],
             onChanged: (c) => draft.update(() => draft.currency = c!),
           ),
@@ -225,7 +227,9 @@ class _StyleSection extends StatelessWidget {
             items: const [
               DropdownMenuItem(value: PdfPageFormat.a4, child: Text('A4')),
               DropdownMenuItem(
-                  value: PdfPageFormat.letter, child: Text('Letter')),
+                value: PdfPageFormat.letter,
+                child: Text('Letter'),
+              ),
             ],
             onChanged: (f) => draft.update(() => draft.pageFormat = f!),
           ),
@@ -387,8 +391,9 @@ class _ItemsSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'No items yet. An invoice needs at least one.',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ),
         for (final item in draft.items)

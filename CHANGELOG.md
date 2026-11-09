@@ -23,6 +23,9 @@ First public release.
   `InvoiceValidationException`.
 - **PDF:** `InvoiceGenerator.generate()` returning `InvoicePdf`. A4 and Letter,
   multi-page tables with repeated headers, "Page X of Y", continuation header.
+- **Long content:** notes, terms and payment instructions flow across
+  pages; long item descriptions continue in extra table rows; content that
+  can never fit fails fast with a clear error instead of hanging.
 - **Templates:** `InvoiceTemplate.classic`, `.modern` and `.minimal`.
 - **Customization:** `InvoiceTheme` (colours, fonts, font fallback, sizes,
   spacing, border radius, table style, logo / page number / footer toggles,

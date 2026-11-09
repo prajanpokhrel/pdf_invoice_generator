@@ -36,11 +36,15 @@ final class ClassicTemplate implements TemplateRenderer {
         ctx.gap(0.7),
         pw.Divider(color: ctx.theme.secondaryColor, thickness: 0.5),
         ctx.gap(0.5),
-        partyBlock(
-          ctx,
-          title: ctx.labels.billTo,
-          name: ctx.invoice.customer.name,
-          lines: customerLines(ctx, ctx.invoice.customer),
+        // Kept in one piece: a Column at the top level could otherwise make
+        // the page layout loop when one line is taller than a page.
+        pw.Inseparable(
+          child: partyBlock(
+            ctx,
+            title: ctx.labels.billTo,
+            name: ctx.invoice.customer.name,
+            lines: customerLines(ctx, ctx.invoice.customer),
+          ),
         ),
         ctx.gap(),
         itemsTable(

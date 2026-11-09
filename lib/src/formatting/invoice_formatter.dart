@@ -39,7 +39,7 @@ final class InvoiceFormatter {
           decimalDigits: currency.decimalDigits,
         ),
         NumberFormat('#,##0.####', locale),
-        NumberFormat('#,##0.##', locale),
+        NumberFormat('#,##0.####', locale),
       );
     } on ArgumentError catch (e) {
       throw ArgumentError(
@@ -107,7 +107,8 @@ final class InvoiceFormatter {
   /// Formats a quantity with up to 4 decimals, for example `2.5` or `1,000`.
   String quantity(num value) => _quantity.format(value);
 
-  /// Formats a percentage, for example `13%` or `2.5%`.
+  /// Formats a percentage with up to 4 decimals, for example `13%`, `2.5%`
+  /// or `12.345%` (the same precision the calculator uses).
   String percent(num value) => '${_percent.format(value)}%';
 
   /// Formats [value] using [datePattern].

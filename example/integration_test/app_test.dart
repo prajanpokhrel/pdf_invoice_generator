@@ -52,15 +52,16 @@ Future<String> capture(WidgetTester tester, GlobalKey key, String name) async {
 
 /// Page images drawn by the native plugin inside the preview.
 Finder renderedPages() => find.descendant(
-      of: find.byType(InvoicePreview),
-      matching: find.byType(Image),
-    );
+  of: find.byType(InvoicePreview),
+  matching: find.byType(Image),
+);
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('real plugin renders the preview; templates switch',
-      (tester) async {
+  testWidgets('real plugin renders the preview; templates switch', (
+    tester,
+  ) async {
     final key = GlobalKey();
     await tester.pumpWidget(
       RepaintBoundary(key: key, child: const InvoiceStudioApp()),

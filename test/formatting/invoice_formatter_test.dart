@@ -66,6 +66,8 @@ void main() {
     final f = InvoiceFormatter(currency: Currency.usd);
     expect(f.percent(13), '13%');
     expect(f.percent(2.5), '2.5%');
+    // Same precision as the calculation, so the paper is consistent.
+    expect(f.percent(12.345), '12.345%');
   });
 
   test('dates', () {
