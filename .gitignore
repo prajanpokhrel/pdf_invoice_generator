@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Generated plugin registrant folders at the package root (a package has no
+# platform folders; the example app keeps its own in example/).
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
+/web/

@@ -24,3 +24,13 @@ docs/
 # Example app build output
 example/build/
 example/.dart_tool/
+
+# Flutter tooling sometimes generates plugin registrant folders at the
+# package root. A package has no platform folders (the example app has its
+# own), so never upload them.
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
+/web/
