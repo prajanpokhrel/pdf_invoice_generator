@@ -1,0 +1,26 @@
+# Files NOT uploaded to pub.dev.
+#
+# Important: when this file exists, pub ignores .gitignore in this folder,
+# so the usual build/IDE entries are repeated here.
+
+# Build output and tools (from .gitignore)
+.dart_tool/
+build/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+coverage/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+.history
+migrate_working_dir/
+
+# The learning guide is for the author, not for package users.
+docs/
+
+# Example app build output
+example/build/
+example/.dart_tool/

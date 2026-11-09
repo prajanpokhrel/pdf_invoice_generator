@@ -3,9 +3,26 @@ description: >-
   Create professional invoice PDFs in Flutter with a few lines of code.
   Exact money math, taxes, discounts, multi-page tables, templates,
   preview, save, share and print.
-version: 0.1.0-dev.1
-# Removed in Phase 10, when the package is ready for pub.dev.
-publish_to: 'none'
+version: 0.1.0
+repository: https://github.com/prajanpokhrel/pdf_invoice_generator
+issue_tracker: https://github.com/prajanpokhrel/pdf_invoice_generator/issues
+
+topics:
+  - invoice
+  - pdf
+  - billing
+  - printing
+  - accounting
+
+screenshots:
+  - description: Classic template - grid table with a coloured header.
+    path: screenshots/classic.png
+  - description: Modern template - colour band, amount due card, striped table.
+    path: screenshots/modern.png
+  - description: Minimal template - no fills, thin lines, white space.
+    path: screenshots/minimal.png
+  - description: Example app with the live InvoicePreview widget.
+    path: screenshots/example_app.png
 
 environment:
   sdk: ^3.6.0

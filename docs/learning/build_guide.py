@@ -186,7 +186,7 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 1: Phase 1 - Architecture Plan", S["subtitle"]),
           Paragraph("Chapter 2: Phase 2 - Package Skeleton and Models",
                     S["subtitle"]),
-          Spacer(1, 16 * mm),
+          Spacer(1, 10 * mm),
           Paragraph("Chapter 3: Phase 3 - Calculation Engine", S["subtitle"]),
           Paragraph("Chapter 4: Phase 4 - PDF Generation", S["subtitle"]),
           Paragraph("Chapter 5: Phase 5 - Templates and Customization",
@@ -196,7 +196,8 @@ story += [Spacer(1, 60 * mm),
           Paragraph("Chapter 8: Phase 8 - Example App", S["subtitle"]),
           Paragraph("Chapter 9: Phase 9 - Documentation", S["subtitle"]),
           Paragraph("Chapter 10: Final audit before release", S["subtitle"]),
-          Paragraph("Status: audit complete, ready for Phase 10.", S["subtitle"]),
+          Paragraph("Chapter 11: Phase 10 - Publishing to pub.dev", S["subtitle"]),
+          Paragraph("Status: ready to publish.", S["subtitle"]),
           PageBreak()]
 
 # --------------------------------------------------------------------------
@@ -1839,6 +1840,81 @@ dart pub publish --dry-run                 only the known Phase 10 items
 simple("Tests prove what you thought of. An audit looks for what you did "
        "not think of: extreme inputs, release-mode behaviour, old versions, "
        "and every sentence in the README.")
+
+
+# ==========================================================================
+# CHAPTER 11 - Phase 10: publishing
+# ==========================================================================
+story.append(PageBreak())
+h1("Chapter 11 - Phase 10: Publishing to pub.dev")
+h2("What changed in pubspec.yaml")
+code("""
+version: 0.1.0                 # was 0.1.0-dev.1
+repository: https://github.com/prajanpokhrel/pdf_invoice_generator
+issue_tracker: https://github.com/prajanpokhrel/pdf_invoice_generator/issues
+topics: [invoice, pdf, billing, printing, accounting]   # max 5
+screenshots:                   # shown in a gallery on pub.dev
+  - description: Classic template - ...
+    path: screenshots/classic.png
+# publish_to: 'none'  <- REMOVED (it was our safety lock since Phase 2)
+""")
+bullets([
+    "<b>Screenshots must be inside the package</b>, so they moved to a "
+    "published <font face='Courier'>screenshots/</font> folder; README "
+    "images use raw.githubusercontent.com links to the same files.",
+    "<b>.pubignore</b> keeps docs/ (this guide) out of the upload. Trap: "
+    "when .pubignore exists, pub stops reading .gitignore for that folder, "
+    "so build/, .dart_tool/ and IDE files are listed again.",
+    "Upload size: <b>1 MB</b> (mostly the two fonts).",
+])
+
+h2("pana: the score pub.dev will give")
+p("<font face='Courier'>dart pub global run pana .</font> runs the same "
+  "checks as pub.dev (max 160 points):")
+table(["Category", "Local", "On pub.dev (expected)"], [
+    ["Follow Dart file conventions", "20 / 30", "30 - after main is merged"],
+    ["Provide documentation (100% API docs)", "10 / 20",
+     "20 - image tools exist on the server"],
+    ["Platform support (all 6)", "20 / 20", "20"],
+    ["Pass static analysis", "50 / 50", "50"],
+    ["Up-to-date dependencies (incl. downgrade)", "40 / 40", "40"],
+], [74, 30, 66])
+callout("pana verifies your GitHub repository",
+        "It clones the <b>main</b> branch and looks for a pubspec.yaml with "
+        "<font face='Courier'>name: flutter_invoice_generator</font>. Our work "
+        "was on <font face='Courier'>featurebranch</font>, so main only had "
+        "Phase 1 -> -10 points. Merging featurebranch into main fixes it "
+        "(and makes the README images work).", AMBER_BG, AMBER)
+
+h2("Release steps")
+code("""
+# 1. commit and push the branch
+git add -A && git commit -m "chore: prepare 0.1.0" && git push origin featurebranch
+# 2. merge into main (or open a Pull Request on GitHub and merge it there)
+git checkout main && git pull origin main
+git merge featurebranch && git push origin main
+# 3. final check, then publish (from main)
+dart pub publish --dry-run      # expect: 0 warnings
+dart pub publish                # sign in with Google, type y
+# 4. tag the release
+git tag v0.1.0 && git push origin v0.1.0
+""")
+callout("Before typing 'y'",
+        "Publishing is permanent: a version can never be deleted or "
+        "overwritten (only retracted within 7 days), and the package name "
+        "belongs to the publishing account forever (it can later be "
+        "transferred to a verified publisher). Every next release needs a "
+        "higher version and a CHANGELOG entry.", AMBER_BG, AMBER)
+
+h2("After publishing")
+bullets([
+    "The page appears at pub.dev/packages/flutter_invoice_generator within "
+    "minutes; the score after about an hour.",
+    "Create a GitHub Release from the v0.1.0 tag with the CHANGELOG text.",
+    "Share it: r/FlutterDev, a short article, LinkedIn (Chapter 'will people "
+    "use it?').",
+    "Watch GitHub issues; fix bugs as 0.1.1 (patch), add features as 0.2.0.",
+])
 
 doc = SimpleDocTemplate(str(OUT), pagesize=A4, leftMargin=20 * mm,
                         rightMargin=20 * mm, topMargin=18 * mm,

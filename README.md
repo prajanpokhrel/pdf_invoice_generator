@@ -17,7 +17,7 @@ final pdf = await InvoiceGenerator.generate(invoice);
 
 | Classic | Modern | Minimal |
 |---|---|---|
-| ![Classic](https://raw.githubusercontent.com/OWNER/REPO/main/docs/learning/images/template_classic.png) | ![Modern](https://raw.githubusercontent.com/OWNER/REPO/main/docs/learning/images/template_modern.png) | ![Minimal](https://raw.githubusercontent.com/OWNER/REPO/main/docs/learning/images/template_minimal.png) |
+| ![Classic](https://raw.githubusercontent.com/prajanpokhrel/pdf_invoice_generator/main/screenshots/classic.png) | ![Modern](https://raw.githubusercontent.com/prajanpokhrel/pdf_invoice_generator/main/screenshots/modern.png) | ![Minimal](https://raw.githubusercontent.com/prajanpokhrel/pdf_invoice_generator/main/screenshots/minimal.png) |
 
 ---
 
